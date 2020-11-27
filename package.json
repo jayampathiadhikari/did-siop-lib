@@ -63,6 +63,7 @@
     "ethereum-checksum-address": "0.0.5",
     "ethereum-public-key-to-address": "0.0.2",
     "ethr-did-resolver": "^2.3.2",
+    "hash.js": "^1.1.7",
     "multibase": "^3.0.0",
     "multicodec": "^2.0.0",
     "node-rsa": "^1.0.8",
