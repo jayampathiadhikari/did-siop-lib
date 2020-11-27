@@ -8,6 +8,7 @@ import { Identity, DidDocument } from './Identity';
 import { DidSiopRequest } from './Request';
 import { checkKeyPair } from './Utils';
 import * as ErrorResponse from './ErrorResponse';
+import {Crypto} from "./Crypto";
 
 export const ERRORS= Object.freeze({
     NO_SIGNING_INFO: 'At least one public key must be confirmed with related private key',
@@ -23,6 +24,7 @@ export const ERRORS= Object.freeze({
 export class Provider{
     private identity: Identity = new Identity();
     private signing_info_set: SigningInfo[] = [];
+    private crypto: Crypto = new Crypto();
 
     /**
      * @param {string} did - The DID of the provider (end user)
@@ -52,7 +54,7 @@ export class Provider{
      * @returns {string} - kid of the added key
      * @remarks This method is used to add signing information to 'signing_info_set'.
      * All optional parameters are not used and only there to make the library backward compatible.
-     * Instead of using those optional parameters, given key is iteratively tried with 
+     * Instead of using those optional parameters, given key is iteratively tried with
      * every public key listed in the 'authentication' field of RP's DID Document and every key format
      * until a compatible combination of those information which can be used for the signing process is found.
      */
@@ -74,7 +76,7 @@ export class Provider{
                     format: didPublicKey.format,
                     isPrivate: false
                 }
-    
+
                 for(let key_format in KEY_FORMATS){
 
                     let privateKeyInfo: KeyInputs.KeyInfo = {
@@ -86,11 +88,11 @@ export class Provider{
                         format: KEY_FORMATS[key_format as keyof typeof KEY_FORMATS],
                         isPrivate: true
                     }
-        
+
                     let privateKey: Key;
                     let publicKey: Key | string;
                     let signer, verifier;
-        
+
                     try{
                         switch(didPublicKey.kty){
                             case KTYS.RSA: {
@@ -126,14 +128,15 @@ export class Provider{
                                 continue;
                             }
                         }
-            
+
                         if(checkKeyPair(privateKey, publicKey, signer, verifier, didPublicKey.alg)){
                             this.signing_info_set.push({
                                 alg: didPublicKey.alg,
                                 kid: didPublicKey.id,
                                 key: key,
                                 format: KEY_FORMATS[key_format as keyof typeof KEY_FORMATS],
-                            })
+                            });
+                            this.crypto.init(key);
                             return didPublicKey.id;
                         }
                     }
@@ -142,6 +145,7 @@ export class Provider{
                     }
                 }
             }
+
             throw new Error(ERRORS.NO_PUBLIC_KEY);
         }
         catch(err){
@@ -151,7 +155,7 @@ export class Provider{
 
     /**
      * @param {string} kid - kid value of the SigningInfo which needs to be removed from the list
-     * @remarks This method is used to remove a certain SigningInfo (key) which has the given kid value from the list. 
+     * @remarks This method is used to remove a certain SigningInfo (key) which has the given kid value from the list.
      */
     removeSigningParams(kid: string){
         try{

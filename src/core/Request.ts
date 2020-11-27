@@ -52,7 +52,7 @@ export class DidSiopRequest{
     static async generateRequest(rp: RPInfo, signingInfo: JWT.SigningInfo, options: any): Promise<string> {
         const url = 'openid://';
         const query: any = {
-            response_type: (options.response_type === 'code' || options.response_type === 'id_token')? options.response_type : 'id_token',
+            response_type: (options.response_type === 'code' || options.response_type === 'id_token') ? options.response_type : 'id_token',
             client_id: rp.redirect_uri,
             scope: 'openid did_authn',
         };
@@ -73,7 +73,7 @@ export class DidSiopRequest{
                 client_id: rp.redirect_uri,
                 registration: rp.registration,
                 ...options,
-                response_type: (options.response_type === 'code' || options.response_type === 'id_token')? options.response_type : 'id_token',
+                response_type: (options.response_type === 'code' || options.response_type === 'id_token') ? options.response_type : 'id_token',
             };
 
             let jwtObject: JWT.JWTObject = {

@@ -2,6 +2,10 @@ const pbkdf2 = require('pbkdf2');
 const aesjs = require('aes-js');
 const aes_salt = 'EpOcWe6ulTd1pKI2fsywukZCwwpVJF1c';
 
+
+/**
+ * @classdesc This class provides the functionality of encryption and decryption
+ */
 export class Crypto {
     private ivArray: any = [];
     private keyArray: any = [];
