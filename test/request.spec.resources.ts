@@ -124,6 +124,7 @@ export const requests = {
             state: 'af0ifjsldkj',
             nonce: 'n-0S6_WzA2Mj',
             response_mode: "form_post",
+            response_type: "code"
         }
     }
 }
