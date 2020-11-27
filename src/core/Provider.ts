@@ -20,6 +20,7 @@ export const ERRORS= Object.freeze({
  * @classdesc This class provides the functionality of a DID based Self Issued OpenID Connect Provider
  * @property {Identity} identity  - Used to store Decentralized Identity information of the Provider (end user)
  * @property {SigningInfo[]} signing_info_set - Used to store a list of cryptographic information used to sign id_tokens
+ * @property {Crypto} crypto - Used to generate and decrypt authorization codes
  */
 export class Provider{
     private identity: Identity = new Identity();
@@ -136,7 +137,9 @@ export class Provider{
                                 key: key,
                                 format: KEY_FORMATS[key_format as keyof typeof KEY_FORMATS],
                             });
-                            this.crypto.init(key);
+                            if(didPublicKey.id){
+                                this.crypto.init(key);
+                            }
                             return didPublicKey.id;
                         }
                     }
