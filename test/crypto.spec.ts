@@ -11,16 +11,16 @@ describe("Crypto class", function () {
     test("encrypt",  () => {
         const crypto = new Crypto();
         crypto.init(privateKey);
-        const encrypted = crypto.encrypt('TextMustBe16BytesNoTextMustBe16BytesNoTextMustBe16BytesNoTextMustBe16BytesNoTextMustBe16BytesNoTextMustBe16BytesNo');
+        const encrypted = crypto.encrypt('TextMustBe16BytesNoTextMustBe16BytesNo');
         console.log(encrypted);
         expect(encrypted).toBeTruthy();
     });
-    // test("encrypt/decrypt",  () => {
-    //     const crypto = new Crypto();
-    //     crypto.init(privateKey);
-    //     const encrypted = crypto.encrypt('TextMustBe16BytesNo  ');
-    //     const decrypted =  crypto.decrypt(encrypted);
-    //     console.log(decrypted);
-    //     expect(decrypted).toBeTruthy();
-    // });
+    test("encrypt/decrypt",  () => {
+        const crypto = new Crypto();
+        crypto.init(privateKey);
+        const encrypted = crypto.encrypt('TextMustBe16BytesNo  ');
+        const decrypted =  crypto.decrypt(encrypted);
+        console.log(decrypted.length);
+        expect(decrypted).toBeTruthy();
+    });
 });

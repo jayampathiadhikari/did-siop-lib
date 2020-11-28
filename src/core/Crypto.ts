@@ -1,3 +1,5 @@
+import * as hashUtils from "hash.js";
+
 const pbkdf2 = require('pbkdf2');
 const aesjs = require('aes-js');
 const aes_salt = 'EpOcWe6ulTd1pKI2fsywukZCwwpVJF1c';
@@ -40,4 +42,12 @@ export class Crypto {
         return passwordKey;
     };
 
+    static hash = (value:string): string => {
+        let sha256 = hashUtils.sha256();
+        let level1 = sha256.update(value).digest('hex');
+        let salted = level1 + aes_salt;
+        let level2 = sha256.update(salted).digest('hex');
+        let result = sha256.update(level2).digest('hex');
+        return result;
+    }
 }

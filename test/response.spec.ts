@@ -3,6 +3,9 @@ import { Identity } from './../src/core/Identity';
 import { SigningInfo } from './../src/core/JWT';
 import { ALGORITHMS, KEY_FORMATS } from '../src/core/globals';
 import nock from 'nock';
+import {Crypto} from "../src/core/Crypto";
+import {requests} from "./request.spec.resources";
+const privateKey = 'CE438802C1F0B6F12BC6E686F372D7D495BC5AA634134B4A7EA4603CB25F0964';
 
 let rpDidDoc = {
     didDocument: {
@@ -91,5 +94,12 @@ describe("Response", function () {
         }
         let validity = await DidSiopResponse.validateResponse(response, checkParams);
         expect(validity).toBeTruthy();
+    });
+    test("Auth code generation", async () => {
+        const crypto = new Crypto();
+        crypto.init(privateKey);
+        const authCode = await DidSiopResponse.generateAuthorizationCode(requests.good.requestGoodEmbeddedJWT, crypto);
+        console.log(authCode);
+        expect(authCode).toBeTruthy();
     });
 });

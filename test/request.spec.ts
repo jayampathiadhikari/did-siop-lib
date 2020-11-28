@@ -120,6 +120,8 @@ describe("Request validation/generation", function () {
         jest.setTimeout(7000);
         let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo, requests.components.options);
         let decoded = await DidSiopRequest.validateRequest(rqst);
+        console.log(rqst)
+        console.log(decoded)
         expect(decoded).toHaveProperty('header');
         expect(decoded).toHaveProperty('payload');
     });

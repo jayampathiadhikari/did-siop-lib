@@ -3,6 +3,7 @@ import * as JWT from './JWT';
 import { Identity } from './Identity';
 import { KeyInputs, Key, RSAKey, ECKey, OKP, calculateThumbprint } from './JWKUtils';
 import base64url from 'base64url';
+import {Crypto} from "./Crypto";
 import * as ErrorResponse from './ErrorResponse';
 
 
@@ -35,12 +36,12 @@ export class DidSiopResponse{
     /**
      * @param {any} requestPayload - Payload of the request JWT. Some information from this object is needed in constructing the response
      * @param {JWT.SigningInfo} signingInfo - Key information used to sign the response JWT
-     * @param {Identity} didSiopUser - Used to retrieve the information about the provider (user DID) which are included in the response 
+     * @param {Identity} didSiopUser - Used to retrieve the information about the provider (user DID) which are included in the response
      * @param {number} [expiresIn = 1000] - Amount of time under which generated id_token (response) is valid. The party which validate the
      * response can either consider this value or ignore it
      * @returns {Promise<string>} - A promise which resolves to a response (id_token) (JWT)
      * @remarks This method first checks if given SigningInfo is compatible with the algorithm required by the RP in
-     * 'requestPayload.registration.id_token_signed_response_alg' field. 
+     * 'requestPayload.registration.id_token_signed_response_alg' field.
      * Then it proceeds to extract provider's (user) public key from 'didSiopUser' param using 'kid' field in 'signingInfo' param.
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
@@ -49,7 +50,7 @@ export class DidSiopResponse{
         try {
             let header: JWT.JWTHeader;
             let alg = '';
-        
+
             if (requestPayload.registration.id_token_signed_response_alg.includes(ALGORITHMS[signingInfo.alg])){
                 alg = ALGORITHMS[signingInfo.alg];
             }
@@ -67,7 +68,7 @@ export class DidSiopResponse{
             let publicKey: Key | undefined;
 
             let keyInfo: KeyInputs.KeyInfo;
-            
+
             if(didPubKey){
                 keyInfo = {
                     key: didPubKey.publicKey,
@@ -77,7 +78,7 @@ export class DidSiopResponse{
                     format: didPubKey.format,
                     isPrivate: false,
                 }
-    
+
                 switch(didPubKey.kty){
                     case KTYS.RSA: publicKey = RSAKey.fromKey(keyInfo); break;
                     case KTYS.EC: {
@@ -95,14 +96,14 @@ export class DidSiopResponse{
             else{
                 return Promise.reject(new Error(ERRORS.PUBLIC_KEY_ERROR));
             }
-    
+
             let payload: any = {
                 iss: 'https://self-issued.me',
             }
-    
+
             payload.did = didSiopUser.getDocument().id;
             if(requestPayload.client_id) payload.aud = requestPayload.client_id;
-    
+
             if(publicKey){
                 payload.sub_jwk = publicKey.getMinimalJWK();
                 payload.sub = calculateThumbprint(publicKey.getMinimalJWK());
@@ -110,10 +111,10 @@ export class DidSiopResponse{
             else{
                 return Promise.reject(new Error(ERRORS.PUBLIC_KEY_ERROR));
             }
-    
+
             if (requestPayload.nonce) payload.nonce = requestPayload.nonce;
             if (requestPayload.state) payload.state = requestPayload.state;
-    
+
             payload.iat = Date.now();
             payload.exp = Date.now() + expiresIn;
 
@@ -121,7 +122,7 @@ export class DidSiopResponse{
                 header: header,
                 payload: payload,
             }
-    
+
             return JWT.sign(unsigned, signingInfo);
         } catch (err) {
             return Promise.reject(err);
@@ -129,7 +130,7 @@ export class DidSiopResponse{
     }
 
     /**
-     * 
+     *
      * @param {string} response - A DID SIOP response which needs to be validated
      * @param {CheckParams} checkParams - Specific field values in the JWT which needs to be validated
      * @returns {Promise<JWT.JWTObject | ErrorResponse.SIOPErrorResponse>} - A promise wich will resolve either to a decoded id_token (JWT)
@@ -139,7 +140,7 @@ export class DidSiopResponse{
      * Else it will proceed to validate the JWT (id_token).
      * Fields in the JWT header and payload will be checked for availability.
      * Then the id_token will be validated against 'checkParams'.
-     * Then the signature of the id_token is verified using public key information derived from 
+     * Then the signature of the id_token is verified using public key information derived from
      * the 'kid' field in the header and 'did' field in the payload.
      * If the verification is successful, this method returns the decoded id_token (JWT).
      * https://identity.foundation/did-siop/#siop-response-validation
@@ -169,7 +170,7 @@ export class DidSiopResponse{
 
             if (decodedPayload.aud !== checkParams.redirect_uri) return Promise.reject(new Error(ERRORS.INCORRECT_AUDIENCE));
 
-            if (decodedPayload.nonce && (decodedPayload.nonce !== checkParams.nonce)) return Promise.reject(new Error(ERRORS.INCORRECT_NONCE)); 
+            if (decodedPayload.nonce && (decodedPayload.nonce !== checkParams.nonce)) return Promise.reject(new Error(ERRORS.INCORRECT_NONCE));
 
             if(checkParams.validBefore){
                 if(decodedPayload.iat){
@@ -195,9 +196,9 @@ export class DidSiopResponse{
             try{
                 let identity = new Identity();
                 await identity.resolve(decodedPayload.did);
-                
+
                 let didPubKey = identity.extractAuthenticationKeys().find(authKey => { return authKey.id === decodedHeader.kid});
-                
+
                 if(didPubKey){
                     publicKeyInfo = {
                         key: didPubKey.publicKey,
@@ -214,14 +215,14 @@ export class DidSiopResponse{
                 return Promise.reject(ERRORS.PUBLIC_KEY_ERROR);
             }
 
-            let validity: boolean = false; 
+            let validity: boolean = false;
             if(publicKeyInfo){
                 validity = JWT.verify(response, publicKeyInfo);
             }
             else{
                 return Promise.reject(ERRORS.PUBLIC_KEY_ERROR);
             }
-            
+
             if(validity) return {
                 header: decodedHeader,
                 payload: decodedPayload,
@@ -233,4 +234,32 @@ export class DidSiopResponse{
             return Promise.reject(new Error(ERRORS.MALFORMED_JWT_ERROR));
         }
     }
+
+    /**
+     *
+     * @param {string} request - A validated request
+     * @returns {Promise<string>} - A promise wich will resolve either to a authorization code
+     * or an error response
+     * @remarks This method generates authorization code for authentication flow.
+     * First it hashes the SIOP request
+     * Then an object with fields iat, exp and request is created(hashed request is used as the request);
+     * Encrypt the object by a key generated by private key of provider to obtain the authentication code.
+     *
+     */
+
+    static async generateAuthorizationCode(request:string, crypto:Crypto): Promise<string> {
+        try {
+            const hashedRequest = Crypto.hash(request);
+            const authCode = {
+                iat: Date.now(),
+                exp: Date.now() + 1000*60*10,
+                request: hashedRequest
+            };
+            const authCodeEncrypted = crypto.encrypt(JSON.stringify(authCode));
+            return authCodeEncrypted;
+        }catch (err) {
+            return Promise.reject(new Error(err));
+        }
+    }
+
 }
