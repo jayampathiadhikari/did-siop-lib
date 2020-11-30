@@ -136,6 +136,10 @@ async function validateRequestParams(request: string): Promise<string> {
 
     if (!RESPONSE_TYPES.includes(parsed.query.response_type.toString())) return Promise.reject(ERROR_RESPONSES.unsupported_response_type.err);
 
+    if (parsed.query.response_type === 'id_token' && parsed.query.grant_type === 'authorization_code'){
+        if(!parsed.query.code){return Promise.reject(ERROR_RESPONSES.invalid_request.err);}
+    }
+
     if (parsed.query.request === undefined || parsed.query.request === null) {
         if (parsed.query.request_uri === undefined || parsed.query.request_uri === null) {
             return Promise.reject(ERROR_RESPONSES.invalid_request.err);
