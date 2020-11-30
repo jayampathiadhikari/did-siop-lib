@@ -255,6 +255,7 @@ export class DidSiopResponse{
                 exp: Date.now() + 1000*60*10,
                 request: hashedRequest
             };
+            console.log('AUTHCODE OBJECT',authCode)
             const authCodeEncrypted = crypto.encrypt(JSON.stringify(authCode));
             return authCodeEncrypted;
         }catch (err) {

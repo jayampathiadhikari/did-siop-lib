@@ -6,6 +6,7 @@ import base64url from 'base64url';
 import { KeySet, ERRORS } from './JWKUtils';
 import { ALGORITHMS, KTYS, KEY_FORMATS } from './globals';
 import * as JWT from './JWT';
+import {Crypto} from "./Crypto";
 const axios = require('axios').default;
 
 const RESPONSE_TYPES = ['id_token', 'code'];
@@ -90,6 +91,23 @@ export class DidSiopRequest{
             url,
             query
         });
+    }
+
+    static async validateAuthorizationCode(authCode:string, request:string, crypto:Crypto): Promise<string | boolean> {
+        try {
+            const authCodeDecrypted:string = crypto.decrypt(authCode);
+            const reqObject:any = JSON.parse(authCodeDecrypted);
+            const hashedReq = Crypto.hash(request);
+            if(hashedReq != reqObject.request){
+                return Promise.reject(new Error('INVALID REQUEST'));
+            }
+            if(reqObject.exp < Date.now()){
+                return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
+            }
+            return true;
+        }catch (err) {
+            return Promise.reject(new Error(err));
+        }
     }
 }
 
