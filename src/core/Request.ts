@@ -33,7 +33,8 @@ export class DidSiopRequest{
      */
     static async validateRequest(request: string): Promise<JWT.JWTObject>{
         let requestJWT = await validateRequestParams(request);
-        let jwtDecoded = await validateRequestJWT(requestJWT);
+        console.log(requestJWT);
+        let jwtDecoded = await validateRequestJWT(requestJWT.request, requestJWT.grantType);
         return jwtDecoded;
     }
 
@@ -93,22 +94,6 @@ export class DidSiopRequest{
         });
     }
 
-    static async validateAuthorizationCode(authCode:string, request:string, crypto:Crypto): Promise<string | boolean> {
-        try {
-            const authCodeDecrypted:string = crypto.decrypt(authCode);
-            const reqObject:any = JSON.parse(authCodeDecrypted);
-            const hashedReq = Crypto.hash(request);
-            if(hashedReq != reqObject.request){
-                return Promise.reject(new Error('INVALID REQUEST'));
-            }
-            if(reqObject.exp < Date.now()){
-                return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
-            }
-            return true;
-        }catch (err) {
-            return Promise.reject(new Error(err));
-        }
-    }
 }
 
 /**
@@ -118,7 +103,7 @@ export class DidSiopRequest{
  * If the parameters in the request url is valid then this method returns the encoded request JWT
  * https://identity.foundation/did-siop/#siop-request-validation
  */
-async function validateRequestParams(request: string): Promise<string> {
+async function validateRequestParams(request: string): Promise<any> {
     let parsed = queryString.parseUrl(request);
 
     if (
@@ -156,7 +141,7 @@ async function validateRequestParams(request: string): Promise<string> {
     }
     else {
         if (parsed.query.request.toString().match(/^ *$/)) return Promise.reject(ERROR_RESPONSES.invalid_request_object.err);
-        return parsed.query.request.toString();
+        return {request: parsed.query.request.toString(),  grantType: parsed.query.grant_type};
     }
 }
 
@@ -171,7 +156,8 @@ async function validateRequestParams(request: string): Promise<string> {
  * If the JWT is successfully verified then this method will return the decoded JWT
  * https://identity.foundation/did-siop/#siop-request-validation
  */
-async function validateRequestJWT(requestJWT: string): Promise<JWT.JWTObject> {
+async function validateRequestJWT(requestJWT: string, grantType:string): Promise<JWT.JWTObject> {
+    console.log(grantType);
     let decodedHeader: JWT.JWTHeader;
     let decodedPayload;
     try {
@@ -249,6 +235,7 @@ async function validateRequestJWT(requestJWT: string): Promise<JWT.JWTObject> {
                 return Promise.reject(ERROR_RESPONSES.invalid_request_object.err);
             }
 
+            decodedPayload.grant_type = grantType;
             if (validity) {
                 return {
                     header: decodedHeader,
