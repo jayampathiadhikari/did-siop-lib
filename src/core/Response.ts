@@ -51,7 +51,7 @@ export class DidSiopResponse {
         try {
             let sendResponse:boolean = false;
             let parsed = queryString.parseUrl(request);
-            if(parsed.query.response_type === 'code'){
+            if(requestPayload.response_type === 'code'){
                 if(parsed.query.grant_type === 'authorization_code'){
                     const validCode:string = await this.validateAuthorizationCode(request, requestPayload, crypto);
                     console.log('validate auth code', validCode);
@@ -293,6 +293,7 @@ export class DidSiopResponse {
             let parsed = queryString.parseUrl(request);
             const authCode = parsed.query.code;
             const authCodeDecrypted  = crypto.decrypt(authCode);
+            console.log(authCodeDecrypted);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
             if (hashedReq != reqObject.request) {
@@ -306,8 +307,11 @@ export class DidSiopResponse {
                 return Promise.resolve('True');
             }
         } catch (err) {
-            console.log('VALIDATE ERROR', err)
-            return Promise.reject(new Error(err));
+            if( err.message === 'invalid ciphertext size (must be multiple of 16 bytes)'){
+                return Promise.reject(new Error('INVALID AUTH CODE'));
+            }else{
+                return Promise.reject(err);
+            }
         }
     }
 }
