@@ -189,13 +189,13 @@ export class Provider{
      * @returns {Promise<string>} - A Promise which resolves to an encoded DID SIOP response JWT
      * @remarks This method is used to generate a response to a given DID SIOP request.
      */
-    async generateResponse(requestPayload: any, expiresIn: number = 1000): Promise<string>{
+    async generateResponse(requestPayload: any, request:string, expiresIn: number = 1000): Promise<string>{
         try{
             if(this.signing_info_set.length > 0){
                 let signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
 
                 if(this.identity.isResolved()){
-                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn);
+                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn, this.crypto, request);
                 }
                 else{
                     return Promise.reject(new Error(ERRORS.UNRESOLVED_IDENTITY));
@@ -241,6 +241,24 @@ export class Provider{
         }
     }
 
+    async generateResponseAuthenticationCode(requestPayload: any, expiresIn: number = 1000, request:string): Promise<string>{
+        try{
+            if(this.signing_info_set.length > 0){
+                let signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
+
+                if(this.identity.isResolved()){
+                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn, this.crypto, request);
+                }
+                else{
+                    return Promise.reject(new Error(ERRORS.UNRESOLVED_IDENTITY));
+                }
+            }
+            return Promise.reject(new Error(ERRORS.NO_SIGNING_INFO));
+        }
+        catch(err){
+            return Promise.reject(err);
+        }
+    }
 
 
 }

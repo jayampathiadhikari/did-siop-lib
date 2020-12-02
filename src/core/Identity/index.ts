@@ -24,7 +24,7 @@ export class Identity{
     }
 
     /**
-     * 
+     *
      * @param {string} did - A Decentralized Identity to resolve
      * @returns A promise which resolves to the id field of the related Decentralized Idenity Document (did-doc)
      * @remarks The combinedResolver is used to resolve did-doc.
@@ -40,7 +40,6 @@ export class Identity{
 
         if(
             result &&
-            //result.data.didDocument['@context'] === 'https://w3id.org/did/v1' &&
             result.id == did &&
             result.authentication &&
             result.authentication.length > 0
@@ -60,7 +59,7 @@ export class Identity{
     }
 
     /**
-     * 
+     *
      * @param {DidVerificationKeyExtractor} [extractor] - The extractor to use when extracting keys. If not provided, uniExtractor is used.
      * @returns An array of DidVerificationKey objects
      * @remarks resolve(did) method must be called before calling this method. This method returns the value of keySet property. If keySet is
@@ -84,7 +83,7 @@ export class Identity{
                         continue;
                     }
                 }
-    
+
                 if (method.publicKey) {
                     if(typeof method.publicKey === 'string'){
                         for(let pub of this.doc.publicKey){
@@ -113,7 +112,7 @@ export class Identity{
                         }
                     }
                 }
-    
+
                 if (typeof method === 'string') {
                     for (let pub of this.doc.publicKey) {
                         if (pub.id === method){
@@ -133,15 +132,15 @@ export class Identity{
     }
 
     /**
-     * @returns {DidDocument} The doc property. 
+     * @returns {DidDocument} The doc property.
      */
     getDocument(): DidDocument{
         return this.doc;
     }
 
     /**
-     * 
-     * @param {DidDocument} doc 
+     *
+     * @param {DidDocument} doc
      * @param {string} did - DID related to the doc param
      * @remarks Can be used to set the doc property manually without resolving.
      */

@@ -6,7 +6,6 @@ import base64url from 'base64url';
 import { KeySet, ERRORS } from './JWKUtils';
 import { ALGORITHMS, KTYS, KEY_FORMATS } from './globals';
 import * as JWT from './JWT';
-import {Crypto} from "./Crypto";
 const axios = require('axios').default;
 
 const RESPONSE_TYPES = ['id_token', 'code'];
@@ -51,12 +50,13 @@ export class DidSiopRequest{
      * JWT is then added to the 'request' param of the request.
      * https://identity.foundation/did-siop/#generate-siop-request
      */
-    static async generateRequest(rp: RPInfo, signingInfo: JWT.SigningInfo, options: any): Promise<string> {
+    static async generateRequest(rp: RPInfo, signingInfo: JWT.SigningInfo, queryParams:any , options: any): Promise<string> {
         const url = 'openid://';
         const query: any = {
             response_type: (options.response_type === 'code' || options.response_type === 'id_token') ? options.response_type : 'id_token',
             client_id: rp.redirect_uri,
             scope: 'openid did_authn',
+            ...queryParams
         };
 
         if (rp.request_uri) {

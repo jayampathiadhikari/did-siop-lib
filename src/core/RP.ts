@@ -27,8 +27,8 @@ export class RP {
 
     /**
      * @private
-     * @constructor 
-     * @param {string} redirect_uri - Redirect uri of the RP. Response from the Provider is sent to this uri 
+     * @constructor
+     * @param {string} redirect_uri - Redirect uri of the RP. Response from the Provider is sent to this uri
      * @param {string} did - Decentralized Identity of the Relying Party
      * @param {any} registration - Registration information of the Relying Party
      * https://openid.net/specs/openid-connect-core-1_0.html#RegistrationParameter
@@ -45,7 +45,7 @@ export class RP {
     }
 
     /**
-     * @param {string} redirect_uri - Redirect uri of the RP. Response from the Provider is sent to this uri 
+     * @param {string} redirect_uri - Redirect uri of the RP. Response from the Provider is sent to this uri
      * @param {string} did - Decentralized Identity of the Relying Party
      * @param {any} registration - Registration information of the Relying Party
      * https://openid.net/specs/openid-connect-core-1_0.html#RegistrationParameter
@@ -77,9 +77,9 @@ export class RP {
      * @returns {string} - kid of the added key
      * @remarks This method is used to add signing information to 'signing_info_set'.
      * All optional parameters are not used and only there to make the library backward compatible.
-     * Instead of using those optional parameters, given key is iteratively tried with 
+     * Instead of using those optional parameters, given key is iteratively tried with
      * every public key listed in the 'authentication' field of RP's DID Document and every key format
-     * until a compatible combination of those information which can be used for the signing process is found. 
+     * until a compatible combination of those information which can be used for the signing process is found.
      */
     addSigningParams(key: string, kid?: string, format?: KEY_FORMATS | string, algorithm?: ALGORITHMS | string): string {
         try{
@@ -99,7 +99,7 @@ export class RP {
                     format: didPublicKey.format,
                     isPrivate: false
                 }
-    
+
                 for(let key_format in KEY_FORMATS){
 
                     let privateKeyInfo: KeyInputs.KeyInfo = {
@@ -111,11 +111,11 @@ export class RP {
                         format: KEY_FORMATS[key_format as keyof typeof KEY_FORMATS],
                         isPrivate: true
                     }
-        
+
                     let privateKey: Key;
                     let publicKey: Key | string;
                     let signer, verifier;
-        
+
                    try{
                     switch(didPublicKey.kty){
                         case KTYS.RSA: {
@@ -151,7 +151,7 @@ export class RP {
                             continue;
                         }
                     }
-        
+
                     if(checkKeyPair(privateKey, publicKey, signer, verifier, didPublicKey.alg)){
                         this.signing_info_set.push({
                             alg: didPublicKey.alg,
@@ -176,7 +176,7 @@ export class RP {
 
     /**
      * @param {string} kid - kid value of the SigningInfo which needs to be removed from the list
-     * @remarks This method is used to remove a certain SigningInfo (key) which has the given kid value from the list. 
+     * @remarks This method is used to remove a certain SigningInfo (key) which has the given kid value from the list.
      */
     removeSigningParams(kid: string){
         try{
@@ -193,11 +193,11 @@ export class RP {
      * @returns {Promise<string>} - A Promise which resolves to a DID SIOP request
      * @remarks This method is used to generate a request sent to a DID SIOP Provider.
      */
-    async generateRequest(options:any = {}): Promise<string> {
+    async generateRequest(queryParams:any={}, options:any = {}): Promise<string> {
         try{
             if(this.signing_info_set.length > 0){
                 let signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
-                return await DidSiopRequest.generateRequest(this.info, signing_info, options);
+                return await DidSiopRequest.generateRequest(this.info, signing_info, queryParams, options);
             }
             return Promise.reject(new Error(ERRORS.NO_SIGNING_INFO));
         }

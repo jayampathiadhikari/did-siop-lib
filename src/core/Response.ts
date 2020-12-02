@@ -1,10 +1,11 @@
-import { ALGORITHMS, KTYS, KEY_FORMATS } from './globals';
+import {ALGORITHMS, KTYS, KEY_FORMATS} from './globals';
 import * as JWT from './JWT';
-import { Identity } from './Identity';
-import { KeyInputs, Key, RSAKey, ECKey, OKP, calculateThumbprint } from './JWKUtils';
+import {Identity} from './Identity';
+import {KeyInputs, Key, RSAKey, ECKey, OKP, calculateThumbprint} from './JWKUtils';
 import base64url from 'base64url';
 import {Crypto} from "./Crypto";
 import * as ErrorResponse from './ErrorResponse';
+import * as queryString from "query-string";
 
 
 const ERRORS = Object.freeze({
@@ -22,7 +23,7 @@ const ERRORS = Object.freeze({
     INVALID_SIGNATURE_ERROR: 'Invalid signature error',
 });
 
-export interface CheckParams{
+export interface CheckParams {
     redirect_uri: string;
     nonce?: string;
     validBefore?: number;
@@ -32,7 +33,7 @@ export interface CheckParams{
 /**
  * @classdesc This class contains static methods related to DID SIOP response generation and validation
  */
-export class DidSiopResponse{
+export class DidSiopResponse {
     /**
      * @param {any} requestPayload - Payload of the request JWT. Some information from this object is needed in constructing the response
      * @param {JWT.SigningInfo} signingInfo - Key information used to sign the response JWT
@@ -46,84 +47,108 @@ export class DidSiopResponse{
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
      */
-    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000): Promise<string>{
+    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string,): Promise<string> {
         try {
-            let header: JWT.JWTHeader;
-            let alg = '';
-
-            if (requestPayload.registration.id_token_signed_response_alg.includes(ALGORITHMS[signingInfo.alg])){
-                alg = ALGORITHMS[signingInfo.alg];
-            }
-            else{
-                Promise.reject(ERRORS.UNSUPPORTED_ALGO);
-            }
-
-            let didPubKey = didSiopUser.extractAuthenticationKeys().find(authKey => { return authKey.id === signingInfo.kid});
-            header = {
-                typ: 'JWT',
-                alg: alg,
-                kid: signingInfo.kid,
-            }
-
-            let publicKey: Key | undefined;
-
-            let keyInfo: KeyInputs.KeyInfo;
-
-            if(didPubKey){
-                keyInfo = {
-                    key: didPubKey.publicKey,
-                    kid: didPubKey.id,
-                    use: 'sig',
-                    kty: KTYS[didPubKey.kty],
-                    format: didPubKey.format,
-                    isPrivate: false,
-                }
-
-                switch(didPubKey.kty){
-                    case KTYS.RSA: publicKey = RSAKey.fromKey(keyInfo); break;
-                    case KTYS.EC: {
-                        if(didPubKey.format === KEY_FORMATS.ETHEREUM_ADDRESS){
-                            keyInfo.key = signingInfo.key;
-                            keyInfo.format = signingInfo.format;
-                            keyInfo.isPrivate = true;
-                        }
-                        publicKey = ECKey.fromKey(keyInfo);
-                        break;
+            let sendResponse:boolean = false;
+            if(requestPayload.response_type === 'code'){
+                if(requestPayload.grant_type === 'id_token'){
+                    const validCode = this.validateAuthorizationCode(request, requestPayload, crypto);
+                    if(validCode){
+                        sendResponse = true
+                    }else{
+                        return validCode;
                     }
-                    case KTYS.OKP: publicKey = OKP.fromKey(keyInfo); break;
+                }else{
+                    const code = this.generateAuthorizationCode(requestPayload,crypto);
+                    return code
                 }
+            }else{
+                sendResponse = true;
             }
-            else{
-                return Promise.reject(new Error(ERRORS.PUBLIC_KEY_ERROR));
+            if(sendResponse){
+                let header: JWT.JWTHeader;
+                let alg = '';
+
+                if (requestPayload.registration.id_token_signed_response_alg.includes(ALGORITHMS[signingInfo.alg])) {
+                    alg = ALGORITHMS[signingInfo.alg];
+                } else {
+                    Promise.reject(ERRORS.UNSUPPORTED_ALGO);
+                }
+
+                let didPubKey = didSiopUser.extractAuthenticationKeys().find(authKey => {
+                    return authKey.id === signingInfo.kid
+                });
+                header = {
+                    typ: 'JWT',
+                    alg: alg,
+                    kid: signingInfo.kid,
+                }
+
+                let publicKey: Key | undefined;
+
+                let keyInfo: KeyInputs.KeyInfo;
+
+                if (didPubKey) {
+                    keyInfo = {
+                        key: didPubKey.publicKey,
+                        kid: didPubKey.id,
+                        use: 'sig',
+                        kty: KTYS[didPubKey.kty],
+                        format: didPubKey.format,
+                        isPrivate: false,
+                    }
+
+                    switch (didPubKey.kty) {
+                        case KTYS.RSA:
+                            publicKey = RSAKey.fromKey(keyInfo);
+                            break;
+                        case KTYS.EC: {
+                            if (didPubKey.format === KEY_FORMATS.ETHEREUM_ADDRESS) {
+                                keyInfo.key = signingInfo.key;
+                                keyInfo.format = signingInfo.format;
+                                keyInfo.isPrivate = true;
+                            }
+                            publicKey = ECKey.fromKey(keyInfo);
+                            break;
+                        }
+                        case KTYS.OKP:
+                            publicKey = OKP.fromKey(keyInfo);
+                            break;
+                    }
+                } else {
+                    return Promise.reject(new Error(ERRORS.PUBLIC_KEY_ERROR));
+                }
+
+                let payload: any = {
+                    iss: 'https://self-issued.me',
+                }
+
+                payload.did = didSiopUser.getDocument().id;
+                if (requestPayload.client_id) payload.aud = requestPayload.client_id;
+
+                if (publicKey) {
+                    payload.sub_jwk = publicKey.getMinimalJWK();
+                    payload.sub = calculateThumbprint(publicKey.getMinimalJWK());
+                } else {
+                    return Promise.reject(new Error(ERRORS.PUBLIC_KEY_ERROR));
+                }
+
+                if (requestPayload.nonce) payload.nonce = requestPayload.nonce;
+                if (requestPayload.state) payload.state = requestPayload.state;
+
+                payload.iat = Date.now();
+                payload.exp = Date.now() + expiresIn;
+
+                let unsigned: JWT.JWTObject = {
+                    header: header,
+                    payload: payload,
+                }
+
+                return JWT.sign(unsigned, signingInfo);
+            }else {
+                return ""
             }
 
-            let payload: any = {
-                iss: 'https://self-issued.me',
-            }
-
-            payload.did = didSiopUser.getDocument().id;
-            if(requestPayload.client_id) payload.aud = requestPayload.client_id;
-
-            if(publicKey){
-                payload.sub_jwk = publicKey.getMinimalJWK();
-                payload.sub = calculateThumbprint(publicKey.getMinimalJWK());
-            }
-            else{
-                return Promise.reject(new Error(ERRORS.PUBLIC_KEY_ERROR));
-            }
-
-            if (requestPayload.nonce) payload.nonce = requestPayload.nonce;
-            if (requestPayload.state) payload.state = requestPayload.state;
-
-            payload.iat = Date.now();
-            payload.exp = Date.now() + expiresIn;
-
-            let unsigned: JWT.JWTObject = {
-                header: header,
-                payload: payload,
-            }
-
-            return JWT.sign(unsigned, signingInfo);
         } catch (err) {
             return Promise.reject(err);
         }
@@ -145,12 +170,12 @@ export class DidSiopResponse{
      * If the verification is successful, this method returns the decoded id_token (JWT).
      * https://identity.foundation/did-siop/#siop-response-validation
      */
-    static async validateResponse(response: string, checkParams: CheckParams): Promise<JWT.JWTObject | ErrorResponse.SIOPErrorResponse>{
+    static async validateResponse(response: string, checkParams: CheckParams): Promise<JWT.JWTObject | ErrorResponse.SIOPErrorResponse> {
         let decodedHeader: JWT.JWTHeader;
         let decodedPayload;
         try {
             let errorResponse = ErrorResponse.checkErrorResponse(response);
-            if(errorResponse) return errorResponse;
+            if (errorResponse) return errorResponse;
 
             decodedHeader = JSON.parse(base64url.decode(response.split('.')[0]));
             decodedPayload = JSON.parse(base64url.decode(response.split('.')[1]));
@@ -158,30 +183,29 @@ export class DidSiopResponse{
             return Promise.reject(err);
         }
 
-        if(
+        if (
             (decodedHeader.kid && !decodedHeader.kid.match(/^ *$/)) &&
             (decodedPayload.iss && !decodedPayload.iss.match(/^ *$/)) &&
             (decodedPayload.aud && !decodedPayload.aud.match(/^ *$/)) &&
             (decodedPayload.did && !decodedPayload.did.match(/^ *$/)) &&
             (decodedPayload.sub && !decodedPayload.sub.match(/^ *$/)) &&
             (decodedPayload.sub_jwk && !JSON.stringify(decodedPayload.sub_jwk).match(/^ *$/))
-        ){
+        ) {
             if (decodedPayload.iss !== 'https://self-issued.me') return Promise.reject(new Error(ERRORS.NON_SIOP_FLOW));
 
             if (decodedPayload.aud !== checkParams.redirect_uri) return Promise.reject(new Error(ERRORS.INCORRECT_AUDIENCE));
 
             if (decodedPayload.nonce && (decodedPayload.nonce !== checkParams.nonce)) return Promise.reject(new Error(ERRORS.INCORRECT_NONCE));
 
-            if(checkParams.validBefore){
-                if(decodedPayload.iat){
+            if (checkParams.validBefore) {
+                if (decodedPayload.iat) {
                     if (decodedPayload.iat + checkParams.validBefore <= Date.now()) return Promise.reject(new Error(ERRORS.JWT_VALIDITY_EXPIRED));
-                }
-                else{
+                } else {
                     return Promise.reject(new Error(ERRORS.NO_ISSUED_TIME));
                 }
             }
 
-            if(checkParams.isExpirable){
+            if (checkParams.isExpirable) {
                 if (decodedPayload.exp) {
                     if (decodedPayload.exp <= Date.now()) return Promise.reject(new Error(ERRORS.JWT_VALIDITY_EXPIRED));
                 } else {
@@ -193,44 +217,42 @@ export class DidSiopResponse{
             if (jwkThumbprint !== decodedPayload.sub) return Promise.reject(new Error(ERRORS.INVALID_JWK_THUMBPRINT));
 
             let publicKeyInfo: JWT.SigningInfo | undefined;
-            try{
+            try {
                 let identity = new Identity();
                 await identity.resolve(decodedPayload.did);
 
-                let didPubKey = identity.extractAuthenticationKeys().find(authKey => { return authKey.id === decodedHeader.kid});
+                let didPubKey = identity.extractAuthenticationKeys().find(authKey => {
+                    return authKey.id === decodedHeader.kid
+                });
 
-                if(didPubKey){
+                if (didPubKey) {
                     publicKeyInfo = {
                         key: didPubKey.publicKey,
                         kid: didPubKey.id,
                         alg: didPubKey.alg,
                         format: didPubKey.format
                     }
-                }
-                else{
+                } else {
                     throw new Error(ERRORS.PUBLIC_KEY_ERROR);
                 }
-            }
-            catch(err){
+            } catch (err) {
                 return Promise.reject(ERRORS.PUBLIC_KEY_ERROR);
             }
 
             let validity: boolean = false;
-            if(publicKeyInfo){
+            if (publicKeyInfo) {
                 validity = JWT.verify(response, publicKeyInfo);
-            }
-            else{
+            } else {
                 return Promise.reject(ERRORS.PUBLIC_KEY_ERROR);
             }
 
-            if(validity) return {
+            if (validity) return {
                 header: decodedHeader,
                 payload: decodedPayload,
             }
 
             return Promise.reject(new Error(ERRORS.INVALID_SIGNATURE_ERROR));
-        }
-        else {
+        } else {
             return Promise.reject(new Error(ERRORS.MALFORMED_JWT_ERROR));
         }
     }
@@ -247,20 +269,39 @@ export class DidSiopResponse{
      *
      */
 
-    static async generateAuthorizationCode(request:string, crypto:Crypto): Promise<string> {
+    static async generateAuthorizationCode(requestObject: any, crypto: Crypto): Promise<string> {
         try {
-            const hashedRequest = Crypto.hash(request);
+            const hashedRequest = Crypto.hash(JSON.stringify(requestObject));
             const authCode = {
                 iat: Date.now(),
-                exp: Date.now() + 1000*60*10,
+                exp: Date.now() + 1000 * 60 * 10,
                 request: hashedRequest
             };
-            console.log('AUTHCODE OBJECT',authCode)
+            console.log('AUTHCODE OBJECT', authCode)
             const authCodeEncrypted = crypto.encrypt(JSON.stringify(authCode));
             return authCodeEncrypted;
-        }catch (err) {
+        } catch (err) {
             return Promise.reject(new Error(err));
         }
     }
 
+    static async validateAuthorizationCode(request: string, requestObject: any, crypto: Crypto): Promise<string | boolean> {
+        try {
+            let parsed = queryString.parseUrl(request);
+            const authCode = parsed.query.code;
+            const authCodeDecrypted  = crypto.decrypt(authCode);
+            const reqObject = JSON.parse(authCodeDecrypted);
+            const hashedReq = Crypto.hash(JSON.stringify(requestObject));
+            if (hashedReq != reqObject.request) {
+                return Promise.reject(new Error('INVALID REQUEST'));
+            }
+            if (reqObject.exp < Date.now()) {
+                return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
+            }
+            return true;
+        } catch (err) {
+            return Promise.reject(new Error(err));
+        }
+    }
 }
+
