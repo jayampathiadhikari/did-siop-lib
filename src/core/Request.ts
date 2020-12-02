@@ -32,8 +32,7 @@ export class DidSiopRequest{
      */
     static async validateRequest(request: string): Promise<JWT.JWTObject>{
         let requestJWT = await validateRequestParams(request);
-        console.log(requestJWT);
-        let jwtDecoded = await validateRequestJWT(requestJWT.request, requestJWT.grantType);
+        let jwtDecoded = await validateRequestJWT(requestJWT.request);
         return jwtDecoded;
     }
 
@@ -156,8 +155,7 @@ async function validateRequestParams(request: string): Promise<any> {
  * If the JWT is successfully verified then this method will return the decoded JWT
  * https://identity.foundation/did-siop/#siop-request-validation
  */
-async function validateRequestJWT(requestJWT: string, grantType:string): Promise<JWT.JWTObject> {
-    console.log(grantType);
+async function validateRequestJWT(requestJWT: string): Promise<JWT.JWTObject> {
     let decodedHeader: JWT.JWTHeader;
     let decodedPayload;
     try {
@@ -235,7 +233,7 @@ async function validateRequestJWT(requestJWT: string, grantType:string): Promise
                 return Promise.reject(ERROR_RESPONSES.invalid_request_object.err);
             }
 
-            decodedPayload.grant_type = grantType;
+
             if (validity) {
                 return {
                     header: decodedHeader,

@@ -47,12 +47,14 @@ export class DidSiopResponse {
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
      */
-    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string,): Promise<string> {
+    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string): Promise<string> {
         try {
             let sendResponse:boolean = false;
-            if(requestPayload.response_type === 'code'){
-                if(requestPayload.grant_type === 'id_token'){
-                    const validCode = this.validateAuthorizationCode(request, requestPayload, crypto);
+            let parsed = queryString.parseUrl(request);
+            if(parsed.query.response_type === 'code'){
+                if(parsed.query.grant_type === 'authorization_code'){
+                    const validCode:string = await this.validateAuthorizationCode(request, requestPayload, crypto);
+                    console.log('validate auth code', validCode);
                     if(validCode){
                         sendResponse = true
                     }else{
@@ -63,9 +65,11 @@ export class DidSiopResponse {
                     return code
                 }
             }else{
+                console.log('ID TOKEN RESPONSE');
                 sendResponse = true;
             }
             if(sendResponse){
+                console.log('ID TOKEN RESPONSE__continue');
                 let header: JWT.JWTHeader;
                 let alg = '';
 
@@ -277,7 +281,6 @@ export class DidSiopResponse {
                 exp: Date.now() + 1000 * 60 * 10,
                 request: hashedRequest
             };
-            console.log('AUTHCODE OBJECT', authCode)
             const authCodeEncrypted = crypto.encrypt(JSON.stringify(authCode));
             return authCodeEncrypted;
         } catch (err) {
@@ -285,7 +288,7 @@ export class DidSiopResponse {
         }
     }
 
-    static async validateAuthorizationCode(request: string, requestObject: any, crypto: Crypto): Promise<string | boolean> {
+    static async validateAuthorizationCode(request: string, requestObject: any, crypto: Crypto): Promise<string> {
         try {
             let parsed = queryString.parseUrl(request);
             const authCode = parsed.query.code;
@@ -293,13 +296,17 @@ export class DidSiopResponse {
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
             if (hashedReq != reqObject.request) {
+                console.log('REQUESTS ARE DIFFERERNT')
                 return Promise.reject(new Error('INVALID REQUEST'));
             }
-            if (reqObject.exp < Date.now()) {
+            else if (reqObject.exp < Date.now()) {
+                console.log('REQUESTS ARE EXPIORED')
                 return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
+            }else{
+                return Promise.resolve('True');
             }
-            return true;
         } catch (err) {
+            console.log('VALIDATE ERROR', err)
             return Promise.reject(new Error(err));
         }
     }

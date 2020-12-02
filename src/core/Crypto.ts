@@ -26,7 +26,7 @@ export class Crypto {
         return encryptedHex;
     };
 
-    decrypt = (encryptedText: string): string => {
+    decrypt = (encryptedText: string[] | string | null | undefined): string => {
         const encryptedBytes = aesjs.utils.hex.toBytes(encryptedText);
         const aesCbc = new aesjs.ModeOfOperation.cbc(this.keyArray, this.ivArray);
         const decryptedBytes = aesCbc.decrypt(encryptedBytes);
