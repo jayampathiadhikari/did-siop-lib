@@ -6,7 +6,7 @@ class Storage {
     setItem = async (key:string, value:string, expiresIn:number = 1000*60*10) => {
         try{
             await this.storage.setItem(key,value);
-            setTimeout(()=> {this.storage.removeItem(key)}, expiresIn);
+            setTimeout(() => {this.storage.removeItem(key)}, expiresIn);
             return true;
         }catch (e) {
             throw (e)
@@ -20,7 +20,7 @@ class Storage {
         }catch (e) {
             throw (e)
         }
-    }
+    };
 
 };
 

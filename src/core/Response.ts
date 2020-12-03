@@ -6,7 +6,6 @@ import base64url from 'base64url';
 import {Crypto} from "./Crypto";
 import * as ErrorResponse from './ErrorResponse';
 import * as queryString from "query-string";
-import { v4 as uuidv4 } from 'uuid';
 import Storage from "./Storage";
 
 const ERRORS = Object.freeze({
@@ -275,7 +274,6 @@ export class DidSiopResponse {
         try {
             const hashedRequest = Crypto.hash(JSON.stringify(requestObject));
             const authCode = {
-                uuid:uuidv4(),
                 iat: Date.now(),
                 exp: Date.now() + 1000 * 60 * 10,
                 request: hashedRequest
@@ -294,7 +292,7 @@ export class DidSiopResponse {
             const authCodeDecrypted  = crypto.decrypt(authCode);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
-            const alreadyUsed = await Storage.getItem(reqObject.uuid);
+            const alreadyUsed = await Storage.getItem(reqObject.iat);
             if (hashedReq != reqObject.request) {
                 return Promise.reject(new Error('INVALID REQUEST'));
             }
@@ -305,7 +303,7 @@ export class DidSiopResponse {
                 return Promise.reject(new Error('ALREADY USED CODE'));
             }
             else{
-                await Storage.setItem(reqObject.uuid,reqObject.request);
+                await Storage.setItem(reqObject.iat,reqObject.request);
                 return Promise.resolve('True');
             }
         } catch (err) {
