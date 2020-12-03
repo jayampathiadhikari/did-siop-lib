@@ -60,8 +60,8 @@ export class DidSiopResponse {
                         return validCode;
                     }
                 }else{
-                    const code = this.generateAuthorizationCode(requestPayload,crypto);
-                    return code
+                    const code = await this.generateAuthorizationCode(requestPayload,crypto);
+                    return JSON.stringify({response_type:'code', data:code})
                 }
             }else{
                 sendResponse = true;
@@ -145,7 +145,7 @@ export class DidSiopResponse {
                     payload: payload,
                 }
 
-                return JWT.sign(unsigned, signingInfo);
+                return JSON.stringify({response_type:'id_token', data:JWT.sign(unsigned, signingInfo)});
             }else {
                 return ""
             }
