@@ -221,44 +221,4 @@ export class Provider{
             throw err;
         }
     }
-
-    async generateAuthorizationCode(requestPayload: any): Promise<string>{
-        try{
-            if(this.signing_info_set.length > 0){
-                if(this.identity.isResolved()){
-                    if(requestPayload.response_type = 'code'){
-                        return await DidSiopResponse.generateAuthorizationCode(JSON.stringify(requestPayload),this.crypto);
-                    }
-                }
-                else{
-                    return Promise.reject(new Error(ERRORS.UNRESOLVED_IDENTITY));
-                }
-            }
-            return Promise.reject(new Error(ERRORS.NO_SIGNING_INFO));
-        }
-        catch(err){
-            return Promise.reject(err);
-        }
-    }
-
-    async generateResponseAuthenticationCode(requestPayload: any, expiresIn: number = 1000, request:string): Promise<string>{
-        try{
-            if(this.signing_info_set.length > 0){
-                let signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
-
-                if(this.identity.isResolved()){
-                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn, this.crypto, request);
-                }
-                else{
-                    return Promise.reject(new Error(ERRORS.UNRESOLVED_IDENTITY));
-                }
-            }
-            return Promise.reject(new Error(ERRORS.NO_SIGNING_INFO));
-        }
-        catch(err){
-            return Promise.reject(err);
-        }
-    }
-
-
 }

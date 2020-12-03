@@ -6,7 +6,8 @@ import base64url from 'base64url';
 import {Crypto} from "./Crypto";
 import * as ErrorResponse from './ErrorResponse';
 import * as queryString from "query-string";
-
+import { v4 as uuidv4 } from 'uuid';
+import Storage from "./Storage";
 
 const ERRORS = Object.freeze({
     UNSUPPORTED_ALGO: 'Algorithm not supported',
@@ -54,7 +55,6 @@ export class DidSiopResponse {
             if(requestPayload.response_type === 'code'){
                 if(parsed.query.grant_type === 'authorization_code'){
                     const validCode:string = await this.validateAuthorizationCode(request, requestPayload, crypto);
-                    console.log('validate auth code', validCode);
                     if(validCode){
                         sendResponse = true
                     }else{
@@ -65,11 +65,9 @@ export class DidSiopResponse {
                     return code
                 }
             }else{
-                console.log('ID TOKEN RESPONSE');
                 sendResponse = true;
             }
             if(sendResponse){
-                console.log('ID TOKEN RESPONSE__continue');
                 let header: JWT.JWTHeader;
                 let alg = '';
 
@@ -277,6 +275,7 @@ export class DidSiopResponse {
         try {
             const hashedRequest = Crypto.hash(JSON.stringify(requestObject));
             const authCode = {
+                uuid:uuidv4(),
                 iat: Date.now(),
                 exp: Date.now() + 1000 * 60 * 10,
                 request: hashedRequest
@@ -293,17 +292,20 @@ export class DidSiopResponse {
             let parsed = queryString.parseUrl(request);
             const authCode = parsed.query.code;
             const authCodeDecrypted  = crypto.decrypt(authCode);
-            console.log(authCodeDecrypted);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
+            const alreadyUsed = await Storage.getItem(reqObject.uuid);
             if (hashedReq != reqObject.request) {
-                console.log('REQUESTS ARE DIFFERERNT')
                 return Promise.reject(new Error('INVALID REQUEST'));
             }
             else if (reqObject.exp < Date.now()) {
-                console.log('REQUESTS ARE EXPIORED')
                 return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
-            }else{
+            }
+            else if(alreadyUsed){
+                return Promise.reject(new Error('ALREADY USED CODE'));
+            }
+            else{
+                await Storage.setItem(reqObject.uuid,reqObject.request);
                 return Promise.resolve('True');
             }
         } catch (err) {
