@@ -8,7 +8,7 @@ import { Identity, DidDocument } from './Identity';
 import { DidSiopRequest } from './Request';
 import { checkKeyPair } from './Utils';
 import * as ErrorResponse from './ErrorResponse';
-import {Crypto} from "./Crypto";
+import { Crypto } from "./Crypto";
 
 export const ERRORS= Object.freeze({
     NO_SIGNING_INFO: 'At least one public key must be confirmed with related private key',
@@ -184,10 +184,12 @@ export class Provider{
 
     /**
      * @param {any} requestPayload - Payload of the request JWT for which a response needs to be generated
-     * @param {number} expiresIn - Number of miliseconds under which the generated response is valid. Relying Parties can
+     * @param {string} request - DID SIOP request containing the request payload
+     * @param {number} expiresIn - Number of milliseconds under which the generated response is valid. Relying Parties can
      * either consider this value or ignore it
-     * @returns {Promise<string>} - A Promise which resolves to an encoded DID SIOP response JWT
-     * @remarks This method is used to generate a response to a given DID SIOP request.
+     * @returns {Promise<string>} - A Promise which resolves to an object which contains response_type and data.
+     * data could be authorization code or encoded DID SIOP response JWT
+     * @remarks This method is used to generate a response to a given DID SIOP request (for both implicit and authorization code flow)
      */
     async generateResponse(requestPayload: any, request:string, expiresIn: number = 1000): Promise<string>{
         try{

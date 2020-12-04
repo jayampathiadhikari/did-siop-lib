@@ -188,8 +188,11 @@ export class RP {
     }
 
     /**
+     * @param {any} [queryParams = {}] - query parameters which should be included in the SIOP request. for implicit flow no need of additional params are required.
+     * for authorization code flow response_type, grant_type and code should be passed
      * @param {any} [options = {}] - Any optional field which should be included in the request JWT. Any field which is not supported
-     * at Provider's end will be ignored
+     * at Provider's end will be ignored. for implicit flow no need of additional params are required.
+     * for authorization code flow response_type should be passed
      * @returns {Promise<string>} - A Promise which resolves to a DID SIOP request
      * @remarks This method is used to generate a request sent to a DID SIOP Provider.
      */
@@ -217,7 +220,7 @@ export class RP {
     async generateUriRequest(request_uri: string, options:any = {}): Promise<string> {
         try{
             this.info.request_uri = request_uri;
-            return await this.generateRequest(options);
+            return await this.generateRequest({}, options);
         }
         catch(err){
             return Promise.reject(ERRORS.NO_SIGNING_INFO);

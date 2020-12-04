@@ -40,9 +40,12 @@ export class DidSiopResponse {
      * @param {Identity} didSiopUser - Used to retrieve the information about the provider (user DID) which are included in the response
      * @param {number} [expiresIn = 1000] - Amount of time under which generated id_token (response) is valid. The party which validate the
      * response can either consider this value or ignore it
-     * @returns {Promise<string>} - A promise which resolves to a response (id_token) (JWT)
-     * @remarks This method first checks if given SigningInfo is compatible with the algorithm required by the RP in
-     * 'requestPayload.registration.id_token_signed_response_alg' field.
+     * @param {Crypto} crypto - Used to generate and decrypt authorization codes
+     * @param {string} request - DID SIOP request containing the request payload
+     * @returns {Promise<string>} - A promise which resolves to a response depending on the request type (response - {"response_type":"code/id_token", "data":"auth_code/token"})
+     * @remarks This method first checks the flow type of the request. if its authorization code then it generates or validates the auth code if given.
+     * then if the auth code is valid or flow type is grant, it works as follows.
+     * if given SigningInfo is compatible with the algorithm required by the RP in 'requestPayload.registration.id_token_signed_response_alg' field.
      * Then it proceeds to extract provider's (user) public key from 'didSiopUser' param using 'kid' field in 'signingInfo' param.
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
