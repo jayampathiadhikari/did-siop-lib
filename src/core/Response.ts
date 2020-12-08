@@ -306,7 +306,7 @@ export class DidSiopResponse {
             //     return Promise.reject(new Error('ALREADY USED CODE'));
             // }
             else{
-                await Storage.setItem(reqObject.iat,reqObject.request);
+                // await Storage.setItem(reqObject.iat,reqObject.request);
                 return Promise.resolve('True');
             }
         } catch (err) {
