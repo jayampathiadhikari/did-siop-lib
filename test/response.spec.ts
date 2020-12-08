@@ -1,11 +1,15 @@
+// @ts-ignore
+import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
+jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
 import { DidSiopResponse } from './../src/core/Response';
 import { Identity } from './../src/core/Identity';
 import { SigningInfo } from './../src/core/JWT';
 import { ALGORITHMS, KEY_FORMATS } from '../src/core/globals';
 import nock from 'nock';
 import {Crypto} from "../src/core/Crypto";
-import {requests} from "./request.spec.resources";
+import {jwtGoodDecoded, requests} from "./request.spec.resources";
 const privateKey = 'CE438802C1F0B6F12BC6E686F372D7D495BC5AA634134B4A7EA4603CB25F0964';
+const authCode = 'af39a7ff0ed5389f7dfe7ac5ff4b51acf47d0917343395873ff47a1e936f57e27b2dd823697d6b7cec7174df370c3a23648f2dc9a0fba7cc66629e3b142a07ddd809dba98d450596fbb6e1cffb8e4cd8dd370597630e810b259c5c2c8e7c476ddf9813041d46d7c8af3f17a54f8313da7f6bee1b7cfeb036e70ddc04d47e70e7'
 
 let rpDidDoc = {
     didDocument: {
@@ -61,6 +65,10 @@ describe("Response", function () {
     });
     test("Response generation and validation", async () => {
         jest.setTimeout(7000);
+        const crypto = new Crypto();
+        crypto.init(privateKey);
+
+        const request = 'openid://?client_id=https%3A%2F%2Fmy.rp.com%2Fcb&request=eyJhbGciOiJFUzI1NkstUiIsInR5cCI6IkpXVCIsImtpZCI6ImRpZDpldGhyOjB4QjA3RWFkOTcxN2I0NEI2Y0Y0MzljNDc0MzYyYjlCMDg3N0NCQkY4MyNjb250cm9sbGVyIn0.eyJpc3MiOiJkaWQ6ZXRocjoweEIwN0VhZDk3MTdiNDRCNmNGNDM5YzQ3NDM2MmI5QjA4NzdDQkJGODMiLCJzY29wZSI6Im9wZW5pZCBkaWRfYXV0aG4iLCJjbGllbnRfaWQiOiJodHRwczovL215LnJwLmNvbS9jYiIsInJlZ2lzdHJhdGlvbiI6eyJqd2tzX3VyaSI6Imh0dHBzOi8vdW5pcmVzb2x2ZXIuaW8vMS4wL2lkZW50aWZpZXJzL2RpZDpleGFtcGxlOjB4YWI7dHJhbnNmb3JtLWtleXM9andrcyIsImlkX3Rva2VuX3NpZ25lZF9yZXNwb25zZV9hbGciOlsiRVMyNTZLIiwiRWREU0EiLCJSUzI1NiJdfSwic3RhdGUiOiJhZjBpZmpzbGRraiIsIm5vbmNlIjoibi0wUzZfV3pBMk1qIiwicmVzcG9uc2VfbW9kZSI6ImZvcm1fcG9zdCIsInJlc3BvbnNlX3R5cGUiOiJpZF90b2tlbiJ9.G3kG77qXciUNX-uNjLfwV4HCJYjeJNt7T04PCXKlt9Np1Sf8Bd4WhdKyy5-aZAFFwahF93VWeE-NeGcU2UAIgAE&response_type=id_token&scope=openid%20did_authn'
         let requestPayload = {
             "iss": "did:ethr:0xB07Ead9717b44B6cF439c474362b9B0877CBBF83",
             "response_type": "id_token",
@@ -84,7 +92,7 @@ describe("Response", function () {
         let user = new Identity();
         await user.resolve('did:ethr:0xB07Ead9717b44B6cF439c474362b9B0877CBBF83')
 
-        let response = await DidSiopResponse.generateResponse(requestPayload, signing, user, 5000);
+        let response = await DidSiopResponse.generateResponse(requestPayload, signing, user, 5000, crypto, request);
 
         let checkParams = {
             redirect_uri: 'https://my.rp.com/cb',
@@ -98,8 +106,18 @@ describe("Response", function () {
     test("Auth code generation", async () => {
         const crypto = new Crypto();
         crypto.init(privateKey);
-        const authCode = await DidSiopResponse.generateAuthorizationCode(requests.good.requestGoodEmbeddedJWT, crypto);
+        const authCode = await DidSiopResponse.generateAuthorizationCode(jwtGoodDecoded, crypto);
         console.log(authCode);
         expect(authCode).toBeTruthy();
+    });
+
+    test("Auth code validation", async () => {
+        const crypto = new Crypto();
+        crypto.init(privateKey);
+        const dd = requests.good.requestGoodAuthenticationFlow + authCode;
+        console.log(dd)
+        const valid = await DidSiopResponse.validateAuthorizationCode(dd, jwtGoodDecoded, crypto);
+        console.log(valid);
+        expect(dd).toBeTruthy();
     });
 });

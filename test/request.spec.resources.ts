@@ -2,7 +2,7 @@ import { ALGORITHMS, KEY_FORMATS } from './../src/core/globals';
 import { JWTObject } from './../src/core/JWT';
 import { sign } from '../src/core/JWT';
 
-const jwtGoodDecoded = {
+export const jwtGoodDecoded = {
     header: {
         "typ": "JWT",
         "alg": "ES256K-R",
@@ -83,6 +83,7 @@ export const queryObj = {
 export const requests = {
     good: {
         requestGoodEmbeddedJWT: 'openid://?response_type=id_token&client_id=https://rp.example.com/cb&scope=openid did_authn&request=' + jwtGoodEncoded,
+        requestGoodAuthenticationFlow: 'openid://?response_type=id_token&client_id=https://rp.example.com/cb&scope=openid did_authn&request=' + jwtGoodEncoded + '&code=',
         requestGoodUriJWT: 'openid://?response_type=id_token&client_id=https://rp.example.com/cb&scope=openid did_authn&request_uri=' + jwt_uri
     },
     bad: {
@@ -102,8 +103,6 @@ export const requests = {
         requestBadJWTNoScope: 'openid://?response_type=id_token&client_id=https://rp.example.com/cb&scope=openid did_authn&request=' + jwts.bad.jwtBadNoScope,
         requestBadJWTIncorrectScope: 'openid://?response_type=id_token&client_id=https://rp.example.com/cb&scope=openid did_authn&request=' + jwts.bad.jwtBadIncorrectScope,
         requestBadJWTNoRegistration: 'openid://?response_type=id_token&client_id=https://rp.example.com/cb&scope=openid did_authn&request=' + jwts.bad.jwtBadNoRegistration,
-
-
     },
     components: {
         signingInfo: {
@@ -124,7 +123,7 @@ export const requests = {
             state: 'af0ifjsldkj',
             nonce: 'n-0S6_WzA2Mj',
             response_mode: "form_post",
-            response_type: "fail"
-        }
+        },
+
     }
 }

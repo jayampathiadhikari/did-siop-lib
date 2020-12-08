@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+//if window.localStorage undefined use react native as storeage
 class Storage {
     private storage = AsyncStorage;
 

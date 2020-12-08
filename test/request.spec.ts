@@ -116,13 +116,23 @@ describe("Request validation/generation", function () {
         validityPromise = DidSiopRequest.validateRequest(requests.bad.requestBadJWTIncorrectScope);
         await expect(validityPromise).rejects.toEqual(ERROR_RESPONSES.invalid_request_object.err);
     });
-    test("Generate request - expect truthy", async () => {
+    test("Generate request (Implicit flow) - expect truthy", async () => {
         jest.setTimeout(7000);
-        let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo, requests.components.options);
+        let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo,{}, requests.components.options);
         let decoded = await DidSiopRequest.validateRequest(rqst);
-        console.log(rqst)
-        console.log(decoded)
+        console.log(decoded);
+        console.log(rqst);
         expect(decoded).toHaveProperty('header');
         expect(decoded).toHaveProperty('payload');
+    });
+    test("Generate Auth Code request (Auth code flow) - expect truthy", async () => {
+        jest.setTimeout(7000);
+        let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo,{response_type:'code'}, {response_type:'code'});
+        expect(rqst).toBeTruthy();
+    });
+    test("Generate id_token request (Auth code flow) - expect truthy", async () => {
+        jest.setTimeout(7000);
+        let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo,{response_type:'code', grant_type:'id_token', code:'code'}, {response_type:'code'});
+        expect(rqst).toBeTruthy();
     });
 });
