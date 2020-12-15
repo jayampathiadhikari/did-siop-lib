@@ -6,7 +6,7 @@ import base64url from 'base64url';
 import {Crypto} from "./Crypto";
 import * as ErrorResponse from './ErrorResponse';
 import * as queryString from "query-string";
-import Storage from "./Storage";
+// import Storage from "./Storage";
 
 const ERRORS = Object.freeze({
     UNSUPPORTED_ALGO: 'Algorithm not supported',

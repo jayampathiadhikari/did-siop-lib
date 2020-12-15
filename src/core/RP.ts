@@ -188,8 +188,8 @@ export class RP {
     }
 
     /**
-     * @param {any} [queryParams = {}] - query parameters which should be included in the SIOP request. for implicit flow no need of additional params are required.
-     * for authorization code flow response_type, grant_type and code should be passed
+     * @param {any} [queryParams = {}] - query parameters which should be included in the SIOP request. for implicit flow no additional params are required.
+     * for authorization code flow: response_type, grant_type and code should be passed
      * @param {any} [options = {}] - Any optional field which should be included in the request JWT. Any field which is not supported
      * at Provider's end will be ignored. for implicit flow no need of additional params are required.
      * for authorization code flow response_type should be passed

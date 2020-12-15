@@ -11,6 +11,7 @@ Following are the primary specifications followed by this implementation.
 * [OpenID Connect Core 1.0 incorporating errata set 1](https://openid.net/specs/openid-connect-core-1_0.html#SelfIssued)
 * [Self-Issued OpenID Connect Provider DID Profile](https://identity.foundation/did-siop/)
 
+Additionally this library can be used in authentication code flow 
 ## Usage ##
 Minimum implementation of SIOP using this package could be found [here](https://github.com/RadicalLedger/did-siop-rp-web-min). Further details on implementation and resources could found with [browser extension project](https://github.com/RadicalLedger/did-siop-chrome-ext).
 
@@ -31,7 +32,7 @@ const rp = await DID_SIOP.RP.getRP(
 rp.addSigningParams('CE438802C1F0B6F12BC6E686F372D7D495BC5AA634134B4A7EA4603CB25F0964'); // Private key
 
 //Request generation
-rp.generateRequest([optionsObj]).then(request => {
+rp.generateRequest([queryParamsObj], [optionsObj]).then(request => {
   console.log(request);
 })
 
@@ -56,9 +57,9 @@ provider.addSigningParams('3f81cb66c8cbba18fbe25f99d2fb4e19f54a1ee69c335ce756a70
 provider.validateRequest(request)
 .then(decodedRequest => {
   let jwtExpiration = 5000;
-  provider.generateResponse(decodedRequest.payload, [jwtExpiration])
-  .then(responseJWT => {
-    console.log(responseJWT);
+  provider.generateResponse(decodedRequest.payload, request, [jwtExpiration])
+  .then(responseObj => {
+    console.log(responseObj);
   })
 })
 .catch(err => {
@@ -66,6 +67,42 @@ provider.validateRequest(request)
   console.log(errorResponse);
 })
 ```
+## Usage (Authentication Code Flow) ##
+### RP ###
+```js
+const DID_SIOP = require('did-siop');
+var endpoint ;
+
+const rp = await DID_SIOP.RP.getRP(
+  endpoint, // RP's redirect_uri
+  'did:ethr:0xB07Ead9717b44B6cF439c474362b9B0877CBBF83', // RP's did
+  {
+    "jwks_uri": "https://uniresolver.io/1.0/identifiers/did:ethr:0xB07Ead9717b44B6cF439c474362b9B0877CBBF83;transform-keys=jwks",
+    "id_token_signed_response_alg": ["ES256K-R", "EdDSA", "RS256"]
+  } // RP's registration meta data
+);
+			
+rp.addSigningParams('CE438802C1F0B6F12BC6E686F372D7D495BC5AA634134B4A7EA4603CB25F0964'); // Private key
+
+//Request generation (Authentication code request)
+rp.generateRequest({response_type:'code'}, {response_type:'code'}).then(request => {
+  console.log(request);
+});
+
+//Request generation (id_token request)
+rp.generateRequest({response_type:'id_token', grant_type:'authorization_code', code: 'RECEIVED AUTH CODE FROM PROVIDER'}, {response_type:'code'}).then(request => {
+  console.log(request);
+});
+
+//Response validation
+rp.validateResponse(responseJWT).then(decodedResponse => {
+  console.log(decodedResponse);
+}).catch(err => {
+  console.log('invalid response');
+});
+```
+### Provider ###
+Provider is the same as previous code (generates corresponding response according to the request)
 
 ### Supported Algorithms ###
 Defined in _src/core/globals.ts_
@@ -117,9 +154,10 @@ Removes an already added key information
   * Promise\<DID_SIOP.JWTObject\>
 
 ---
-#### async generateResponse(requestPayload: any, expiresIn: number = 1000): Promise\<string\> ####
+#### async generateResponse(requestPayload: any, request:string, expiresIn: number = 1000): Promise\<string\> ####
 * Parameters
   * requestPayload:any - payload of the request JWT
+  * request - DID SIOP request containing the request payload
   * expiresIn:number - expiration time in seconds
 * Return
   * Promise\<string\>
@@ -160,9 +198,14 @@ Removes an already added key information
   * void
 
 ---
-#### async generateRequest(options:any = {}): Promise\<string\> ####
+#### async generateRequest(queryParams:any = {}, options:any = {}): Promise\<string\> ####
 * Parameters
-  * options:any = {} - Any additional options to include in the request as a JSON object
+  * queryParams = {} - query parameters which should be included in the SIOP request. For implicit flow no additional params are required.
+                       For authorization code flow: "response_type", "grant_type" and "code" are passed.
+                       <br>
+                       Ex: {response_type:'code'} , {response_type:'id_token', grant_type:'authorization_code', code:'Received auth code' }
+  * options:any = {} - Any additional options to include in the request as a JSON object.<br>
+                       For authorization code flow: {response_type:'code'} must be passed for all request generations
 * Return
   * Promise\<string\>
 
