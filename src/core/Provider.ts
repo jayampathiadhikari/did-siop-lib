@@ -9,6 +9,7 @@ import { DidSiopRequest } from './Request';
 import { checkKeyPair } from './Utils';
 import * as ErrorResponse from './ErrorResponse';
 import { Crypto } from "./Crypto";
+import {Storage} from "./Storage";
 
 export const ERRORS= Object.freeze({
     NO_SIGNING_INFO: 'At least one public key must be confirmed with related private key',
@@ -26,6 +27,11 @@ export class Provider{
     private identity: Identity = new Identity();
     private signing_info_set: SigningInfo[] = [];
     private crypto: Crypto = new Crypto();
+    private storage:Storage = new Storage();
+
+    setStorage = (storage:any) => {
+        this.storage.setStorage(storage);
+    };
 
     /**
      * @param {string} did - The DID of the provider (end user)
@@ -197,7 +203,7 @@ export class Provider{
                 let signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
 
                 if(this.identity.isResolved()){
-                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn, this.crypto, request);
+                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn, this.crypto, request, this.storage);
                 }
                 else{
                     return Promise.reject(new Error(ERRORS.UNRESOLVED_IDENTITY));

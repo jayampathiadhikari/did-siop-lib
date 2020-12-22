@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 //if window.localStorage undefined use react native as storeage
-class Storage {
-    private storage = AsyncStorage;
+export class Storage {
+    private storage = (window.localStorage != undefined ? window.localStorage : AsyncStorage);
+
+    setStorage = (storage:any) => {
+        this.storage = storage
+    };
 
     setItem = async (key:string, value:string, expiresIn:number = 1000*60*10) => {
         try{
@@ -15,6 +19,7 @@ class Storage {
     };
 
     getItem = async(key:string) => {
+        console.log('FROM DID SIP LIB', window.localStorage, this.storage);
         try{
             const item = await this.storage.getItem(key);
             return item;

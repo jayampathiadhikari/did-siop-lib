@@ -6,7 +6,7 @@ import base64url from 'base64url';
 import {Crypto} from "./Crypto";
 import * as ErrorResponse from './ErrorResponse';
 import * as queryString from "query-string";
-// import Storage from "./Storage";
+import {Storage} from "./Storage";
 
 const ERRORS = Object.freeze({
     UNSUPPORTED_ALGO: 'Algorithm not supported',
@@ -50,13 +50,13 @@ export class DidSiopResponse {
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
      */
-    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string): Promise<string> {
+    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string, storage:Storage): Promise<string> {
         try {
             let sendResponse:boolean = false;
             let parsed = queryString.parseUrl(request);
             if(requestPayload.response_type === 'code'){
                 if(parsed.query.grant_type === 'authorization_code'){
-                    const validCode:string = await this.validateAuthorizationCode(request, requestPayload, crypto);
+                    const validCode:string = await this.validateAuthorizationCode(request, requestPayload, crypto, storage);
                     if(validCode){
                         sendResponse = true
                     }else{
@@ -288,25 +288,25 @@ export class DidSiopResponse {
         }
     }
 
-    static async validateAuthorizationCode(request: string, requestObject: any, crypto: Crypto): Promise<string> {
+    static async validateAuthorizationCode(request: string, requestObject: any, crypto: Crypto, storage:Storage): Promise<string> {
         try {
             let parsed = queryString.parseUrl(request);
             const authCode = parsed.query.code;
             const authCodeDecrypted  = crypto.decrypt(authCode);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
-            // const alreadyUsed = await Storage.getItem(reqObject.iat);
+            const alreadyUsed = await storage.getItem(reqObject.iat.toString());
             if (hashedReq != reqObject.request) {
                 return Promise.reject(new Error('INVALID REQUEST'));
             }
             else if (reqObject.exp < Date.now()) {
                 return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
             }
-            // else if(alreadyUsed){
-            //     return Promise.reject(new Error('ALREADY USED CODE'));
-            // }
+            else if(alreadyUsed){
+                return Promise.reject(new Error('ALREADY USED CODE'));
+            }
             else{
-                // await Storage.setItem(reqObject.iat,reqObject.request);
+                await storage.setItem(reqObject.iat.toString(),reqObject.request);
                 return Promise.resolve('True');
             }
         } catch (err) {
