@@ -102,7 +102,13 @@ rp.validateResponse(responseJWT).then(decodedResponse => {
 });
 ```
 ### Provider ###
-Provider is the same as previous code (generates corresponding response according to the request)
+For react native env, provider must be passed an AsyncStorage instance.
+```js
+const provider = new Provider();
+provider.setStorage(AsyncStorage)
+```
+Other part is same as previous code (generates corresponding response according to the request)
+
 
 ### Supported Algorithms ###
 Defined in _src/core/globals.ts_
