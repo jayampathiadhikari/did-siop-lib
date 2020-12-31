@@ -295,18 +295,18 @@ export class DidSiopResponse {
             const authCodeDecrypted  = crypto.decrypt(authCode);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
-            const alreadyUsed = await storage.getItem(reqObject.iat.toString());
+            // const alreadyUsed = await storage.getItem(reqObject.iat.toString());
             if (hashedReq != reqObject.request) {
                 return Promise.reject(new Error('INVALID REQUEST'));
             }
             else if (reqObject.exp < Date.now()) {
                 return Promise.reject(new Error('EXPIRED AUTHORIZATION CODE'));
             }
-            else if(alreadyUsed){
-                return Promise.reject(new Error('ALREADY USED CODE'));
-            }
+            // else if(alreadyUsed){
+            //     return Promise.reject(new Error('ALREADY USED CODE'));
+            // }
             else{
-                await storage.setItem(reqObject.iat.toString(),reqObject.request);
+                // await storage.setItem(reqObject.iat.toString(),reqObject.request);
                 return Promise.resolve('True');
             }
         } catch (err) {
