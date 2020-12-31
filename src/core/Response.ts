@@ -295,6 +295,7 @@ export class DidSiopResponse {
             const authCodeDecrypted  = crypto.decrypt(authCode);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
+            console.log('STORAGE',storage)
             // const alreadyUsed = await storage.getItem(reqObject.iat.toString());
             if (hashedReq != reqObject.request) {
                 return Promise.reject(new Error('INVALID REQUEST'));
