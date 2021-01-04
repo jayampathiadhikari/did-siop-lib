@@ -2,9 +2,7 @@
 export class Storage {
     private storage: any;
     constructor(){
-        console.log('FROM DID SIOP LIB, CONSTRUCTOR');
-        if(window){
-            console.log('FROM DID SIOP LIB, WEB STORAGE ACTIVATED');
+        if(window && window.localStorage){
             this.storage = window.localStorage;
         }
     }
