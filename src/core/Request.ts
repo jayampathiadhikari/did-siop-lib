@@ -6,9 +6,11 @@ import base64url from 'base64url';
 import { KeySet, ERRORS } from './JWKUtils';
 import { ALGORITHMS, KTYS, KEY_FORMATS } from './globals';
 import * as JWT from './JWT';
+import * as ErrorResponse from './ErrorResponse';
+
 const axios = require('axios').default;
 
-const RESPONSE_TYPES = ['id_token', 'code'];
+const RESPONSE_TYPES = ['id_token', 'code', 'refresh_token'];
 const SUPPORTED_SCOPES = ['openid', 'did_authn',];
 const REQUIRED_SCOPES = ['openid', 'did_authn',];
 
@@ -30,10 +32,25 @@ export class DidSiopRequest{
      * @remarks This method make use of two functions which first validates the url parameters of the request
      * and then the request JWT contained in 'request' or 'requestURI' parameter
      */
-    static async validateRequest(request: string): Promise<JWT.JWTObject>{
+    static async validateRequest(request: string): Promise<JWT.JWTObject | any>{
         let requestJWT = await validateRequestParams(request);
-        let jwtDecoded = await validateRequestJWT(requestJWT.request);
-        return jwtDecoded;
+        if(requestJWT.grantType === 'refresh_token'){
+            const response = requestJWT.idToken;
+            let decodedHeader: JWT.JWTHeader;
+            let decodedPayload;
+            try {
+                let errorResponse = ErrorResponse.checkErrorResponse(response);
+                if (errorResponse) return errorResponse;
+                decodedHeader = JSON.parse(base64url.decode(response.split('.')[0]));
+                decodedPayload = JSON.parse(base64url.decode(response.split('.')[1]));
+            } catch (err) {
+                return Promise.reject(err);
+            }
+            return {header:decodedHeader, payload:decodedPayload};
+        }else{
+            let jwtDecoded = await validateRequestJWT(requestJWT.request);
+            return jwtDecoded;
+        }
     }
 
     /**
@@ -104,44 +121,58 @@ export class DidSiopRequest{
  */
 async function validateRequestParams(request: string): Promise<any> {
     let parsed = queryString.parseUrl(request);
-
     if (
         parsed.url !== 'openid://' ||
         (!parsed.query.client_id || parsed.query.client_id.toString().match(/^ *$/)) ||
         (!parsed.query.response_type || parsed.query.response_type.toString().match(/^ *$/))
     ) return Promise.reject(ERROR_RESPONSES.invalid_request.err);
 
-    if (parsed.query.scope) {
-        let requestedScopes = parsed.query.scope.toString().split(' ');
-        if (!(requestedScopes.every(s => SUPPORTED_SCOPES.includes(s))) || !(REQUIRED_SCOPES.every(s => requestedScopes.includes(s))))
-            return Promise.reject(ERROR_RESPONSES.invalid_scope.err);
-    }
-    else return Promise.reject(ERROR_RESPONSES.invalid_request.err);
-
-    if (!RESPONSE_TYPES.includes(parsed.query.response_type.toString())) return Promise.reject(ERROR_RESPONSES.unsupported_response_type.err);
-
-    if (parsed.query.response_type === 'id_token' && parsed.query.grant_type === 'authorization_code'){
-        if(!parsed.query.code){return Promise.reject(ERROR_RESPONSES.invalid_request.err);}
-    }
-
-    if (parsed.query.request === undefined || parsed.query.request === null) {
-        if (parsed.query.request_uri === undefined || parsed.query.request_uri === null) {
+    //    check if request is refresh_token
+    if(parsed.query.response_type === 'id_token' && parsed.query.grant_type === 'refresh_token'){
+        if ((!parsed.query.id_token || parsed.query.id_token.toString().match(/^ *$/)) ||
+            (!parsed.query.refresh_token || parsed.query.refresh_token.toString().match(/^ *$/))
+        ){
             return Promise.reject(ERROR_RESPONSES.invalid_request.err);
+        } else{
+            return {refreshToken: parsed.query.refresh_token.toString(), idToken: parsed.query.id_token.toString(),  grantType: parsed.query.grant_type};
         }
-        else {
-            if (parsed.query.request_uri.toString().match(/^ *$/)) return Promise.reject(ERROR_RESPONSES.invalid_request_uri.err)
-            try {
-                let returnedValue = await axios.get(parsed.query.request_uri);
-                return returnedValue.data ? returnedValue.data : Promise.reject(ERROR_RESPONSES.invalid_request_uri.err);
-            } catch (err) {
-                return Promise.reject(ERROR_RESPONSES.invalid_request_uri.err);
+
+    }else {
+
+        if (parsed.query.scope) {
+            let requestedScopes = parsed.query.scope.toString().split(' ');
+            if (!(requestedScopes.every(s => SUPPORTED_SCOPES.includes(s))) || !(REQUIRED_SCOPES.every(s => requestedScopes.includes(s))))
+                return Promise.reject(ERROR_RESPONSES.invalid_scope.err);
+        }
+        else return Promise.reject(ERROR_RESPONSES.invalid_request.err);
+
+        if (!RESPONSE_TYPES.includes(parsed.query.response_type.toString())) return Promise.reject(ERROR_RESPONSES.unsupported_response_type.err);
+
+        if (parsed.query.response_type === 'id_token' && parsed.query.grant_type === 'authorization_code'){
+            if(!parsed.query.code){return Promise.reject(ERROR_RESPONSES.invalid_request.err);}
+        }
+
+        if (parsed.query.request === undefined || parsed.query.request === null) {
+            if (parsed.query.request_uri === undefined || parsed.query.request_uri === null) {
+                return Promise.reject(ERROR_RESPONSES.invalid_request.err);
+            }
+            else {
+                if (parsed.query.request_uri.toString().match(/^ *$/)) return Promise.reject(ERROR_RESPONSES.invalid_request_uri.err)
+                try {
+                    let returnedValue = await axios.get(parsed.query.request_uri);
+                    return returnedValue.data ? returnedValue.data : Promise.reject(ERROR_RESPONSES.invalid_request_uri.err);
+                } catch (err) {
+                    return Promise.reject(ERROR_RESPONSES.invalid_request_uri.err);
+                }
             }
         }
+        else {
+            if (parsed.query.request.toString().match(/^ *$/)) return Promise.reject(ERROR_RESPONSES.invalid_request_object.err);
+            return {request: parsed.query.request.toString(),  grantType: parsed.query.grant_type};
+        }
     }
-    else {
-        if (parsed.query.request.toString().match(/^ *$/)) return Promise.reject(ERROR_RESPONSES.invalid_request_object.err);
-        return {request: parsed.query.request.toString(),  grantType: parsed.query.grant_type};
-    }
+
+
 }
 
 /**

@@ -109,12 +109,21 @@ describe('DID SIOP', function () {
 
         let authCodeReq = await rp.generateRequest({response_type:'code'}, {response_type:'code'});
         let authRequestJWTDecoded = await provider.validateRequest(authCodeReq);
-        let authCodegenerated = await provider.generateResponse(authRequestJWTDecoded.payload, authCodeReq);
+        //
+        let authCodegenerated = await provider.generateResponse(authRequestJWTDecoded, authCodeReq);
         expect(authCodegenerated).toBeTruthy();
 
         let request =  await rp.generateRequest({response_type:'id_token', grant_type:'authorization_code', code:JSON.parse(authCodegenerated).data}, {response_type:'code'});
         let requestJWTDecoded = await provider.validateRequest(request);
-        let response = await provider.generateResponse(requestJWTDecoded.payload, request);
+        //
+        let response = await provider.generateResponse(requestJWTDecoded, request);
+
+        const res:any  = JSON.parse(response);
+        const refrehs_req = `openid://?response_type=id_token&grant_type=refresh_token&id_token=${res.data}&refresh_token=${res.refresh_token}&client_id="https://rp.example.com/cb"`;
+
+        let requestJWTDecoded2 = await provider.validateRequest(refrehs_req);
+        await provider.generateResponse(requestJWTDecoded2, refrehs_req);
+
 
         let responseJWTDecoded = await rp.validateResponse(JSON.parse(response).data, {
             redirect_uri: rpRedirectURI,

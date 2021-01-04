@@ -21,6 +21,8 @@ const ERRORS = Object.freeze({
     JWT_VALIDITY_EXPIRED: 'JWT validity has expired',
     INVALID_JWK_THUMBPRINT: 'Invalid sub (sub_jwk thumbprint)',
     INVALID_SIGNATURE_ERROR: 'Invalid signature error',
+    TOKEN_MISMATCH: 'id_token does not match with refresh_token',
+    EXPIRED_REFRESH_TOKEN: 'Expired refresh token'
 });
 
 export interface CheckParams {
@@ -50,8 +52,10 @@ export class DidSiopResponse {
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
      */
-    static async generateResponse(requestPayload: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string, storage:Storage): Promise<string> {
+    static async generateResponse(decodedRequest: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string, storage:Storage): Promise<string> {
         try {
+            let requestHeader = decodedRequest.header;
+            let requestPayload = decodedRequest.payload;
             let sendResponse:boolean = false;
             let parsed = queryString.parseUrl(request);
             if(requestPayload.response_type === 'code'){
@@ -66,6 +70,27 @@ export class DidSiopResponse {
                     const code = await this.generateAuthorizationCode(requestPayload,crypto);
                     return JSON.stringify({response_type:'code', data:code})
                 }
+            }else if(parsed.query.grant_type === 'refresh_token'){
+                const idToken = parsed.query.id_token;
+                const refreshToken = parsed.query.refresh_token;
+                const res = await this.validateRefreshToken(idToken, refreshToken, crypto);
+                if(res === 'true'){
+                    requestPayload.iat = Date.now();
+                    requestPayload.exp = Date.now() + expiresIn;
+                    console.log('AFTER',requestPayload)
+                    let unsigned: JWT.JWTObject = {
+                        header: requestHeader,
+                        payload: requestPayload,
+                    };
+                    const idToken = JWT.sign(unsigned, signingInfo);
+                    const refreshToken = await this.generateRefreshToken(idToken, crypto);
+                    return JSON.stringify({response_type:'id_token', data:idToken, refresh_token: refreshToken});
+                }
+                //send response true for valid
+                //if valid(update exp time of payload )
+                //also need to send header
+                //then sign it here and send
+                return res;
             }else{
                 sendResponse = true;
             }
@@ -146,9 +171,16 @@ export class DidSiopResponse {
                 let unsigned: JWT.JWTObject = {
                     header: header,
                     payload: payload,
-                }
+                };
+                console.log('GRANT TYPE', parsed.query.grant_type)
+                if(parsed.query.grant_type === 'authorization_code'){
+                    const idToken = JWT.sign(unsigned, signingInfo)
+                    const refreshToken = await this.generateRefreshToken(idToken, crypto);
+                    return JSON.stringify({response_type:'id_token', data:idToken, refresh_token: refreshToken});
+                }else{
 
-                return JSON.stringify({response_type:'id_token', data:JWT.sign(unsigned, signingInfo)});
+                    return JSON.stringify({response_type:'id_token', data:JWT.sign(unsigned, signingInfo)});
+                }
             }else {
                 return ""
             }
@@ -288,6 +320,39 @@ export class DidSiopResponse {
         }
     }
 
+    static async generateRefreshToken(id_token: any, crypto: Crypto): Promise<string> {
+        console.log('IDTOKEN FOR GENREATE',id_token);
+        try {
+            const hashedIDToken = Crypto.hash(JSON.stringify(id_token));
+            const refreshToken = {
+                iat: Date.now(),
+                exp: Date.now() + 1000 * 60 * 60 * 24 * 30,
+                id_token: hashedIDToken
+            };
+            const refreshTokenEncrypted = crypto.encrypt(JSON.stringify(refreshToken));
+            return refreshTokenEncrypted;
+        } catch (err) {
+            return Promise.reject(new Error(err));
+        }
+    }
+
+    static async validateRefreshToken(id_token: any, refresh_token: any, crypto:Crypto): Promise<string> {
+        try {
+            const hashedIDToken = Crypto.hash(JSON.stringify(id_token));
+            const refreshTokenDecrypted = JSON.parse(crypto.decrypt(refresh_token));
+            if(refreshTokenDecrypted.id_token != hashedIDToken){
+                return Promise.reject(new Error(ERRORS.TOKEN_MISMATCH));
+            }
+            if(Date.now() > refreshTokenDecrypted.exp){
+                return Promise.reject(new Error(ERRORS.EXPIRED_REFRESH_TOKEN));
+            }
+            //if not expired update exp time of the
+            return 'true'
+        } catch (err) {
+            return Promise.reject(new Error(err));
+        }
+    }
+
     static async validateAuthorizationCode(request: string, requestObject: any, crypto: Crypto, storage:Storage): Promise<string> {
         try {
             let parsed = queryString.parseUrl(request);
@@ -295,7 +360,7 @@ export class DidSiopResponse {
             const authCodeDecrypted  = crypto.decrypt(authCode);
             const reqObject = JSON.parse(authCodeDecrypted);
             const hashedReq = Crypto.hash(JSON.stringify(requestObject));
-            console.log('STORAGE',storage)
+            console.log(storage);
             // const alreadyUsed = await storage.getItem(reqObject.iat.toString());
             if (hashedReq != reqObject.request) {
                 return Promise.reject(new Error('INVALID REQUEST'));

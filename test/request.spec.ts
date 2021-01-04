@@ -128,11 +128,13 @@ describe("Request validation/generation", function () {
     test("Generate Auth Code request (Auth code flow) - expect truthy", async () => {
         jest.setTimeout(7000);
         let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo,{response_type:'code'}, {response_type:'code'});
+        console.log(rqst);
         expect(rqst).toBeTruthy();
     });
     test("Generate id_token request (Auth code flow) - expect truthy", async () => {
         jest.setTimeout(7000);
         let rqst = await DidSiopRequest.generateRequest(requests.components.rp, requests.components.signingInfo,{response_type:'code', grant_type:'id_token', code:'code'}, {response_type:'code'});
+        console.log(rqst);
         expect(rqst).toBeTruthy();
     });
 });

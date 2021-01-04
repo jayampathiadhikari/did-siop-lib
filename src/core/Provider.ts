@@ -180,7 +180,7 @@ export class Provider{
      * @returns {Promise<JWT.JWTObject>} - A Promise which resolves to a decoded request JWT
      * @remarks This method is used to validate requests coming from Relying Parties.
      */
-    async validateRequest(request: string): Promise<JWTObject>{
+    async validateRequest(request: string): Promise<JWTObject | any>{
         try {
             return DidSiopRequest.validateRequest(request);
         } catch (err) {
