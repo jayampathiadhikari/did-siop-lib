@@ -1,8 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 //if window.localStorage undefined use react native as storeage
 export class Storage {
-    private storage = (window.localStorage != undefined ? window.localStorage : AsyncStorage);
+    private storage: any;
+    constructor(){
+        console.log('FROM DID SIOP LIB, CONSTRUCTOR');
+        if(window){
+            console.log('FROM DID SIOP LIB, WEB STORAGE ACTIVATED');
+            this.storage = window.localStorage;
+        }
+    }
 
     setStorage = (storage:any) => {
         this.storage = storage

@@ -67,7 +67,7 @@ provider.validateRequest(request)
   console.log(errorResponse);
 })
 ```
-## Usage (Authentication Code Flow) ##
+## Usage (Authorization Code Flow) ##
 ### RP ###
 ```js
 const DID_SIOP = require('did-siop');
@@ -84,7 +84,7 @@ const rp = await DID_SIOP.RP.getRP(
 			
 rp.addSigningParams('CE438802C1F0B6F12BC6E686F372D7D495BC5AA634134B4A7EA4603CB25F0964'); // Private key
 
-//Request generation (Authentication code request)
+//Request generation (Authorization code request)
 rp.generateRequest({response_type:'code'}, {response_type:'code'}).then(request => {
   console.log(request);
 });
