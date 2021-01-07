@@ -57,7 +57,7 @@ provider.addSigningParams('3f81cb66c8cbba18fbe25f99d2fb4e19f54a1ee69c335ce756a70
 provider.validateRequest(request)
 .then(decodedRequest => {
   let jwtExpiration = 5000;
-  provider.generateResponse(decodedRequest.payload, request, [jwtExpiration])
+  provider.generateResponse(decodedRequest, request, [jwtExpiration])
   .then(responseObj => {
     console.log(responseObj);
   })
@@ -160,9 +160,9 @@ Removes an already added key information
   * Promise\<DID_SIOP.JWTObject\>
 
 ---
-#### async generateResponse(requestPayload: any, request:string, expiresIn: number = 1000): Promise\<string\> ####
+#### async generateResponse(decodedRequest: any, request:string, expiresIn: number = 1000): Promise\<string\> ####
 * Parameters
-  * requestPayload:any - payload of the request JWT
+  * decodedRequest:any - Decoded request JWT
   * request - DID SIOP request containing the request payload
   * expiresIn:number - expiration time in seconds
 * Return
