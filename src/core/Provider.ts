@@ -189,7 +189,7 @@ export class Provider{
     }
 
     /**
-     * @param {any} requestPayload - Payload of the request JWT for which a response needs to be generated
+     * @param {any} decodedRequest - Decoded request JWT for which a response needs to be generated
      * @param {string} request - DID SIOP request containing the request payload
      * @param {number} expiresIn - Number of milliseconds under which the generated response is valid. Relying Parties can
      * either consider this value or ignore it
@@ -197,13 +197,13 @@ export class Provider{
      * data could be authorization code or encoded DID SIOP response JWT
      * @remarks This method is used to generate a response to a given DID SIOP request (for both implicit and authorization code flow)
      */
-    async generateResponse(requestPayload: any, request:string, expiresIn: number = 1000): Promise<string>{
+    async generateResponse(decodedRequest: any, request:string, expiresIn: number = 1000): Promise<string>{
         try{
             if(this.signing_info_set.length > 0){
                 let signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
 
                 if(this.identity.isResolved()){
-                    return await DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn, this.crypto, request, this.storage);
+                    return await DidSiopResponse.generateResponse(decodedRequest, signing_info, this.identity, expiresIn, this.crypto, request, this.storage);
                 }
                 else{
                     return Promise.reject(new Error(ERRORS.UNRESOLVED_IDENTITY));
