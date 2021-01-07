@@ -210,6 +210,21 @@ export class RP {
     }
 
     /**
+     * @param {string} idToken - expired idToken or idToken wish to refreshed.
+     * @param {string} refreshToken - refreshToken received with above idToken.
+     * @returns {string} - A string which is a refresh request
+     * @remarks This method is used to generate a request to refresh a token.
+     */
+    generateTokenRefreshRequest =  async (idToken:string, refreshToken:string): Promise<string> => {
+        try{
+            const request = `openid://?response_type=id_token&grant_type=refresh_token&id_token=${idToken}&refresh_token=${refreshToken}&client_id=${this.info.redirect_uri}`;
+            return request;
+        }catch (e) {
+            return Promise.reject(new Error(e.message))
+        }
+    };
+
+    /**
      * @param {string} request_uri - A uri from which a pre-configured and signed request JWT can be obtained
      * @param {any} [options = {}] - Any optional field which should be included in the request JWT. Any field which is not supported
      * at Provider's end will be ignored
