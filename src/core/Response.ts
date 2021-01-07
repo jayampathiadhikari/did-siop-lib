@@ -44,7 +44,11 @@ export class DidSiopResponse {
      * response can either consider this value or ignore it
      * @param {Crypto} crypto - Used to generate and decrypt authorization codes
      * @param {string} request - DID SIOP request containing the request payload
-     * @returns {Promise<string>} - A promise which resolves to a response depending on the request type (response - {"response_type":"code/id_token", "data":"auth_code/token"})
+     * @returns {Promise<string>} - A promise which resolves to a response depending on the request type (example responses -
+     * {"response_type":"code", "code":"auth_code"}
+     * {"response_type":"id_token", "id_token":"token"}
+     * {"response_type":"id_token", "id_token":"token", "refresh_token":"token"}
+     * )
      * @remarks This method first checks the flow type of the request. if its authorization code then it generates or validates the auth code if given.
      * then if the auth code is valid or flow type is grant, it works as follows.
      * if given SigningInfo is compatible with the algorithm required by the RP in 'requestPayload.registration.id_token_signed_response_alg' field.
@@ -68,7 +72,7 @@ export class DidSiopResponse {
                     }
                 }else{
                     const code = await this.generateAuthorizationCode(requestPayload,crypto);
-                    return JSON.stringify({response_type:'code', data:code})
+                    return JSON.stringify({response_type:'code', code:code})
                 }
             }else if(parsed.query.grant_type === 'refresh_token'){
                 const idToken = parsed.query.id_token;
@@ -83,7 +87,7 @@ export class DidSiopResponse {
                     };
                     const idToken = JWT.sign(unsigned, signingInfo);
                     const refreshToken = await this.generateRefreshToken(idToken, crypto);
-                    return JSON.stringify({response_type:'id_token', data:idToken, refresh_token: refreshToken, from:'REFRESH_TOKEN'});
+                    return JSON.stringify({response_type:'id_token', id_token:idToken, refresh_token: refreshToken});
                 }
                 return res;
             }else{
@@ -171,9 +175,9 @@ export class DidSiopResponse {
                 if(parsed.query.grant_type === 'authorization_code'){
                     const idToken = JWT.sign(unsigned, signingInfo);
                     const refreshToken = await this.generateRefreshToken(idToken, crypto);
-                    return JSON.stringify({response_type:'id_token', data:idToken, refresh_token: refreshToken});
+                    return JSON.stringify({response_type:'id_token', id_token:idToken, refresh_token: refreshToken});
                 }else{
-                    return JSON.stringify({response_type:'id_token', data:JWT.sign(unsigned, signingInfo)});
+                    return JSON.stringify({response_type:'id_token', id_token:JWT.sign(unsigned, signingInfo)});
                 }
             }else {
                 return ""
