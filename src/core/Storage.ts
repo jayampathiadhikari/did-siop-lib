@@ -1,8 +1,8 @@
-//if window.localStorage undefined use react native as storeage
+//if window.localStorage undefined use react native as storage
 export class Storage {
     private storage: any;
     constructor(){
-        if(window && window.localStorage){
+        if(typeof window != "undefined"){
             this.storage = window.localStorage;
         }
     }
@@ -22,7 +22,6 @@ export class Storage {
     };
 
     getItem = async(key:string) => {
-        console.log('FROM DID SIP LIB', window.localStorage, this.storage);
         try{
             const item = await this.storage.getItem(key);
             return item;

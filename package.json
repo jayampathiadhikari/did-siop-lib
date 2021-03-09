@@ -11,7 +11,8 @@
     "minify": "uglifyjs --compress --mangle --output dist/browser/did-siop.min.js -- dist/browser/did-siop.compiled.js",
     "browser-build": "browserify src/index.ts -p [ tsify tsconfig.json ] --s DID_SIOP > dist/browser/did-siop.js && npm run-script compile && npm run-script minify",
     "test": "jest",
-    "publish-version": "npm run-script node-build && npm run-script browser-build && npm publish"
+    "publish-version": "npm run-script node-build && npm run-script browser-build && npm publish",
+    "obfuscate": "javascript-obfuscator ./dist --output ./dist/obfuscated"
   },
   "repository": {
     "type": "git",
@@ -46,6 +47,7 @@
     "@types/node": "^13.13.2",
     "@types/query-string": "^6.3.0",
     "browserify": "^16.5.1",
+    "javascript-obfuscator": "^2.11.0",
     "jest": "^25.4.0",
     "nock": "^12.0.3",
     "ts-jest": "^25.4.0",
