@@ -56,7 +56,7 @@ export class DidSiopResponse {
      * Finally it will create the response JWT (id_token) with relevant information, sign it using 'signingInfo' and return it.
      * https://identity.foundation/did-siop/#generate-siop-response
      */
-    static async generateResponse(decodedRequest: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string, storage:Storage): Promise<string> {
+    static async generateResponse(decodedRequest: any, signingInfo: JWT.SigningInfo, didSiopUser: Identity, expiresIn: number = 1000, crypto:Crypto, request:string, storage:Storage, vc?:any): Promise<string> {
         try {
             let requestHeader = decodedRequest.header;
             let requestPayload = decodedRequest.payload;
@@ -164,9 +164,10 @@ export class DidSiopResponse {
                 if (requestPayload.nonce) payload.nonce = requestPayload.nonce;
                 if (requestPayload.state) payload.state = requestPayload.state;
 
-                payload.iat = Date.now();
-                payload.exp = Date.now() + expiresIn;
-
+                const now = Date.now()
+                payload.iat = now;
+                payload.exp = now + expiresIn;
+                payload.vc = vc
                 let unsigned: JWT.JWTObject = {
                     header: header,
                     payload: payload,

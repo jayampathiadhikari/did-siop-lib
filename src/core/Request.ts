@@ -11,7 +11,7 @@ import * as ErrorResponse from './ErrorResponse';
 const axios = require('axios').default;
 
 const RESPONSE_TYPES = ['id_token', 'code', 'refresh_token'];
-const SUPPORTED_SCOPES = ['openid', 'did_authn',];
+const SUPPORTED_SCOPES = ['openid', 'did_authn', 'profile', 'email', 'address', 'phone'];
 const REQUIRED_SCOPES = ['openid', 'did_authn',];
 
 export interface RPInfo{
@@ -71,7 +71,7 @@ export class DidSiopRequest{
         const query: any = {
             response_type: (options.response_type === 'code' || options.response_type === 'id_token') ? options.response_type : 'id_token',
             client_id: rp.redirect_uri,
-            scope: 'openid did_authn',
+            scope: options.scope? options.scope : 'openid did_authn',
             ...queryParams
         };
 
@@ -87,7 +87,7 @@ export class DidSiopRequest{
 
             let jwtPayload = {
                 iss: rp.did,
-                scope: 'openid did_authn',
+                scope: options.scope? options.scope : 'openid did_authn',
                 client_id: rp.redirect_uri,
                 registration: rp.registration,
                 ...options,
