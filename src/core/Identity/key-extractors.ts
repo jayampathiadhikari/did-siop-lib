@@ -21,7 +21,7 @@ export abstract class DidVerificationKeyExtractor{
 
     /**
      * @constructor
-     * @param {string | string[]} names - Name(s) of the Verification Method 
+     * @param {string | string[]} names - Name(s) of the Verification Method
      * @param {DidVerificationKeyExtractor} next - Next extractor. If not provided, EmptyDidVerificationKeyExtractor will be used.
      */
     constructor(names: string | string[], next?: DidVerificationKeyExtractor){
@@ -44,7 +44,7 @@ export abstract class DidVerificationKeyExtractor{
     }
 
     /**
-     * 
+     *
      * @param {DidVerificationKeyMethod} method Verification Method from which the key information is needed to be extracted.
      * @returns A DidVerificationKey object
      * @remarks Any extending subclass must implement this abstract method. This method contains the process to extract information.
@@ -89,7 +89,7 @@ class JwsVerificationKey2020Extractor extends DidVerificationKeyExtractor{
             return this.next.extract(method);
         }
     }
-    
+
 }
 
 /**
@@ -114,7 +114,7 @@ class Ed25519VerificationKeyExtractor extends DidVerificationKeyExtractor{
             return this.next.extract(method);
         }
     }
-    
+
 }
 
 /**
@@ -232,7 +232,8 @@ class EcdsaSecp256k1RecoveryMethod2020Extractor extends DidVerificationKeyExtrac
                 alg: ALGORITHMS["ES256K-R"],
                 format: KEY_FORMATS.HEX,
                 publicKey: ''
-            }
+            };
+            console.log('names arersdfs',getVerificationKeyFromDifferentFormats(method, extracted))
             return getVerificationKeyFromDifferentFormats(method, extracted);
         }
         else{
@@ -252,12 +253,12 @@ class UniversalDidPublicKeyExtractor extends DidVerificationKeyExtractor{
 }
 
 /**
- * 
- * @param {DidVerificationKeyMethod} method 
- * @param {DidVerificationKey} holder 
+ *
+ * @param {DidVerificationKeyMethod} method
+ * @param {DidVerificationKey} holder
  * @returns holder
  * @remarks Cryptographic keys can come in many different formats. This method is used to select the specific key format from a verification method and
- * retreive the key. holder instance holds other information extracted from the Verification Method and this method fills 'format' and 'publicKey' fields. 
+ * retreive the key. holder instance holds other information extracted from the Verification Method and this method fills 'format' and 'publicKey' fields.
  */
 function getVerificationKeyFromDifferentFormats(method: DidVerificationKeyMethod, holder: DidVerificationKey){
     if(!method || !holder) throw new Error(ERRORS.UNSUPPORTED_KEY_FORMAT);
@@ -297,7 +298,7 @@ function getVerificationKeyFromDifferentFormats(method: DidVerificationKeyMethod
     else{
         throw new Error(ERRORS.UNSUPPORTED_KEY_FORMAT);
     }
-    
+
     if(holder.format && holder.publicKey){
         return holder;
     }

@@ -1,6 +1,8 @@
 import { Identity, ERRORS, uniExtractor } from '../src/core/Identity';
 import nock from 'nock';
 import { DID_TEST_RESOLVER_DATA, invalidDID } from './did_doc.spec.resources'
+// import {Resolver} from "did-resolver";
+// import { getResolver } from 'ethr-did-resolver'
 
 describe("Identity functions", function() {
 
@@ -38,6 +40,13 @@ describe("Identity functions", function() {
 
             let publicKey = identity.extractAuthenticationKeys(uniExtractor).filter(pk => {return pk.id === resolverData.keys[0].id})[0];
             expect(publicKey).toEqual(resolverData.keys[0]);
+        }
+    });
+    test("Tests", async () => {
+        let identity = new Identity();
+        const res = await identity.resolve("did:ethr:0x96BC7fe0370eCAD274de9723d4DB3D65e8b890bf");
+        if(res && identity){
+            identity.extractAuthenticationKeys(uniExtractor);
         }
     });
 });

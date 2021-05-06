@@ -1,5 +1,6 @@
 import { DidDocument } from "./commons";
 import { ERRORS } from "./commons";
+import {Resolver} from 'did-resolver'
 import { getResolver } from 'ethr-did-resolver';
 import * as base58 from 'bs58';
 import multibase from "multibase";
@@ -8,20 +9,20 @@ import ed2curve from 'ed2curve';
 const axios = require('axios').default;
 
 /**
- * @classdesc An abstract class which defines the interface for Resolver classes. 
+ * @classdesc An abstract class which defines the interface for Resolver classes.
  * Resolvers are used to resolve the Decentralized Identity Document for a given DID.
  * Any extending child class must implement resolveDidDocumet(did) method.
- * @property {string} methodName - Name of the specific DID Method. Used as a check to resolve only DIDs related to this DID Method. 
+ * @property {string} methodName - Name of the specific DID Method. Used as a check to resolve only DIDs related to this DID Method.
  */
 abstract class DidResolver{
     /**
      * @constructor
-     * @param {string} methodName - Name of the specific DID Method.  
+     * @param {string} methodName - Name of the specific DID Method.
      */
     constructor(protected methodName: string){}
 
     /**
-     * 
+     *
      * @param {string} did - DID to resolve the DID Document for.
      * @returns A promise which resolves to a {DidDocument}
      * @remarks Any inheriting child class must implement this abstract method. Relates to the Read operation of the DID Method.
@@ -29,7 +30,7 @@ abstract class DidResolver{
     abstract async resolveDidDocumet(did: string): Promise<DidDocument>;
 
     /**
-     * 
+     *
      * @param {string} did - DID to resolve the DID Document for.
      * @returns A promise which resolves to a {DidDocument}
      * @remarks A wrapper method which make use of methodName property and resolveDidDocumet(did) method
@@ -37,21 +38,21 @@ abstract class DidResolver{
      */
     resolve(did: string): Promise<DidDocument>{
         if(did.split(':')[1] !== this.methodName) throw new Error('Incorrect did method');
-        return this.resolve(did);
+        return this.resolveDidDocumet(did);
     }
 }
 
 /**
  * @classdesc A Resolver class which combines several other Resolvers in chain.
  * A given DID is tried with each Resolver object and if fails, passed to the next one in the chain.
- * @property {any[]} resolvers - An array to contain instances of other classes which implement DidResolver class. 
+ * @property {any[]} resolvers - An array to contain instances of other classes which implement DidResolver class.
  * @extends {DidResolver}
  */
 class CombinedDidResolver extends DidResolver{
     private resolvers: any[] = [];
 
     /**
-     * 
+     *
      * @param {any} resolver - A resolver instance to add to the chain.
      * @returns {CombinedDidResolver} To use in fluent interface pattern.
      * @remarks Adds a given object to the resolvers array.
@@ -82,7 +83,7 @@ class CombinedDidResolver extends DidResolver{
     }
 
     /**
-     * 
+     *
      * @param {string} did - DID to resolve the DID Document for.
      * @returns A promise which resolves to a {DidDocument}
      * @override resolve(did) method of the {DidResolver}
@@ -100,14 +101,17 @@ class CombinedDidResolver extends DidResolver{
  */
 class EthrDidResolver extends DidResolver{
     async resolveDidDocumet(did: string): Promise<DidDocument> {
-        const providerConfig = { rpcUrl: 'https://ropsten.infura.io/v3/e0a6ac9a2c4a4722970325c36b728415'};
-        let resolve = getResolver(providerConfig).ethr;
-        return await resolve(did, {
-            did,
-            method: 'ethr',
-            id: did.split(':')[2],
-            didUrl: did
-        });
+        const providerConfig = { rpcUrl: 'https://rinkeby.infura.io/ethr-did'};
+        const ethrDidResolver = getResolver(providerConfig);
+        const didResolver = new Resolver(ethrDidResolver);
+        const doc = await didResolver.resolve(did);
+        const didDoc : DidDocument = {
+            ...doc,
+            "@context": doc["@context"],
+            authentication: doc.authentication|| [],
+            id: doc.id,
+        };
+        return didDoc;
     }
 }
 
@@ -120,10 +124,10 @@ class KeyDidResolver extends DidResolver{
         if(!did) {
             throw new TypeError('"did" must be a string.');
         }
-        
+
         const didAuthority = did.split('#')[0];
         const fingerprint = didAuthority.substr('did:key:'.length);
-        
+
         const decodedFingerprint = multibase.decode(fingerprint);
         const unprefixed = multicodec.rmPrefix(decodedFingerprint);
         const publicKey = base58.encode(unprefixed);
@@ -132,7 +136,7 @@ class KeyDidResolver extends DidResolver{
         const keyAgreementKeyBuffer = ed2curve.convertPublicKey(unprefixed);
         if(!keyAgreementKeyBuffer) throw new Error('Cannot derive keyAgreement');
         const keyAgreementKey = base58.encode(keyAgreementKeyBuffer);
-        
+
         const keyAgreementIdBuffer = Buffer.alloc(2 + keyAgreementKeyBuffer.length);
         keyAgreementIdBuffer[0] = 0xec;
         keyAgreementIdBuffer[1] = 0x01;
@@ -159,7 +163,7 @@ class KeyDidResolver extends DidResolver{
                 publicKeyBase58: keyAgreementKey
             }]
         };
-        
+
         console.log('resolved by did:key\n' + JSON.stringify(didDoc));
         return Promise.resolve(didDoc);
     }
@@ -177,7 +181,7 @@ class UniversalDidResolver extends DidResolver{
     }
 
     /**
-     * 
+     *
      * @param {string} did - DID to resolve the DID Document for.
      * @returns A promise which resolves to a {DidDocument}
      * @override resolve(did) method of the {DidResolver}
@@ -193,6 +197,8 @@ class UniversalDidResolver extends DidResolver{
  * @exports CombinedDidResolver An instance of CombinedResolver which includes resolvers for currenlty implemented DID Methods.
  */
 export const combinedDidResolver = new CombinedDidResolver('all')
-    .addResolver(new EthrDidResolver('eth'))
+    .addResolver(new EthrDidResolver('ethr'))
     .addResolver(new KeyDidResolver('key'))
     .addResolver(new UniversalDidResolver('uniresolver'));
+
+export const ethrDidResolver = new EthrDidResolver('ethr');

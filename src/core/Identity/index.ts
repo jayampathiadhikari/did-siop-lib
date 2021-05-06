@@ -1,6 +1,7 @@
 import { DidDocument, DidVerificationKey, ERRORS } from './commons';
 import { DidVerificationKeyExtractor, uniExtractor } from './key-extractors';
-import { combinedDidResolver } from './resolvers';
+import { ethrDidResolver } from './resolvers';
+
 
 /**
  * @classdesc A class to represent a Decentralized Identity.
@@ -32,7 +33,7 @@ export class Identity{
     async resolve(did: string): Promise<string>{
         let result: DidDocument;
         try{
-            result = await combinedDidResolver.resolve(did);
+            result = await ethrDidResolver.resolve(did);
         }
         catch(err){
             throw new Error(ERRORS.DOCUMENT_RESOLUTION_ERROR);
@@ -74,7 +75,8 @@ export class Identity{
         if(!extractor) extractor = uniExtractor;
         if(!this.isResolved()) throw new Error(ERRORS.UNRESOLVED_DOCUMENT);
         if(this.keySet.length === 0){
-            for (let method of this.doc.authentication) {
+            // @ts-ignore
+            for (let method of this.doc.authentication){
                 if (method.id && method.type) {
                     try{
                         this.keySet.push(extractor.extract(method));
