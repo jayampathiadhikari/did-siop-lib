@@ -1,4 +1,23 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35,14 +54,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Provider = exports.ERRORS = void 0;
 var Verifiers_1 = require("./Verifiers");
 var Signers_1 = require("./Signers");
 var JWKUtils_1 = require("./JWKUtils");
@@ -52,16 +65,37 @@ var Identity_1 = require("./Identity");
 var Request_1 = require("./Request");
 var Utils_1 = require("./Utils");
 var ErrorResponse = __importStar(require("./ErrorResponse"));
+var Crypto_1 = require("./Crypto");
+var Storage_1 = require("./Storage");
 exports.ERRORS = Object.freeze({
     NO_SIGNING_INFO: 'At least one public key must be confirmed with related private key',
     UNRESOLVED_IDENTITY: 'Unresolved identity',
     NO_PUBLIC_KEY: 'No public key matches given private key',
 });
+/**
+ * @classdesc This class provides the functionality of a DID based Self Issued OpenID Connect Provider
+ * @property {Identity} identity  - Used to store Decentralized Identity information of the Provider (end user)
+ * @property {SigningInfo[]} signing_info_set - Used to store a list of cryptographic information used to sign id_tokens
+ * @property {Crypto} crypto - Used to generate and decrypt authorization codes
+ */
 var Provider = /** @class */ (function () {
     function Provider() {
+        var _this = this;
         this.identity = new Identity_1.Identity();
         this.signing_info_set = [];
+        this.crypto = new Crypto_1.Crypto();
+        this.storage = new Storage_1.Storage();
+        this.setStorage = function (storage) {
+            _this.storage.setStorage(storage);
+        };
     }
+    /**
+     * @param {string} did - The DID of the provider (end user)
+     * @param {DidDocument} [doc] - DID Document of the provider (end user).
+     * @remarks This method is used to set the decentralized identity for the provider (end user).
+     * doc parameter is optional and if provided it will be used to directly set the identity.
+     * Otherwise the DID Document will be resolved over a related network.
+     */
     Provider.prototype.setUser = function (did, doc) {
         return __awaiter(this, void 0, void 0, function () {
             var err_1;
@@ -85,6 +119,18 @@ var Provider = /** @class */ (function () {
             });
         });
     };
+    /**
+     * @param {string} key - Private part of any cryptographic key listed in the 'authentication' field of the user's DID Document
+     * @param {string} [kid] - kid value of the key. Optional and not used
+     * @param {KEY_FORMATS| string} [format] - Format in which the private key is supplied. Optional and not used
+     * @param {ALGORITHMS} [algorithm] - Algorithm to use the key with. Optional and not used
+     * @returns {string} - kid of the added key
+     * @remarks This method is used to add signing information to 'signing_info_set'.
+     * All optional parameters are not used and only there to make the library backward compatible.
+     * Instead of using those optional parameters, given key is iteratively tried with
+     * every public key listed in the 'authentication' field of RP's DID Document and every key format
+     * until a compatible combination of those information which can be used for the signing process is found.
+     */
     Provider.prototype.addSigningParams = function (key, kid, format, algorithm) {
         try {
             if (format) { }
@@ -161,6 +207,9 @@ var Provider = /** @class */ (function () {
                                 key: key,
                                 format: globals_1.KEY_FORMATS[key_format],
                             });
+                            if (didPublicKey.id) {
+                                this.crypto.init(key);
+                            }
                             return didPublicKey.id;
                         }
                     }
@@ -175,6 +224,10 @@ var Provider = /** @class */ (function () {
             throw err;
         }
     };
+    /**
+     * @param {string} kid - kid value of the SigningInfo which needs to be removed from the list
+     * @remarks This method is used to remove a certain SigningInfo (key) which has the given kid value from the list.
+     */
     Provider.prototype.removeSigningParams = function (kid) {
         try {
             this.signing_info_set = this.signing_info_set.filter(function (s) { return s.kid !== kid; });
@@ -183,6 +236,11 @@ var Provider = /** @class */ (function () {
             throw err;
         }
     };
+    /**
+     * @param {string} request - A DID SIOP request
+     * @returns {Promise<JWT.JWTObject>} - A Promise which resolves to a decoded request JWT
+     * @remarks This method is used to validate requests coming from Relying Parties.
+     */
     Provider.prototype.validateRequest = function (request) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -196,7 +254,16 @@ var Provider = /** @class */ (function () {
             });
         });
     };
-    Provider.prototype.generateResponse = function (requestPayload, expiresIn) {
+    /**
+     * @param {any} decodedRequest - Decoded request JWT for which a response needs to be generated
+     * @param {string} request - DID SIOP request containing the request payload
+     * @param {number} expiresIn - Number of milliseconds under which the generated response is valid. Relying Parties can
+     * either consider this value or ignore it
+     * @returns {Promise<string>} - A Promise which resolves to an object which contains response_type and data.
+     * data could be authorization code or encoded DID SIOP response JWT
+     * @remarks This method is used to generate a response to a given DID SIOP request (for both implicit and authorization code flow)
+     */
+    Provider.prototype.generateResponse = function (decodedRequest, request, expiresIn, vc) {
         if (expiresIn === void 0) { expiresIn = 1000; }
         return __awaiter(this, void 0, void 0, function () {
             var signing_info, err_2;
@@ -207,7 +274,7 @@ var Provider = /** @class */ (function () {
                         if (!(this.signing_info_set.length > 0)) return [3 /*break*/, 3];
                         signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
                         if (!this.identity.isResolved()) return [3 /*break*/, 2];
-                        return [4 /*yield*/, Response_1.DidSiopResponse.generateResponse(requestPayload, signing_info, this.identity, expiresIn)];
+                        return [4 /*yield*/, Response_1.DidSiopResponse.generateResponse(decodedRequest, signing_info, this.identity, expiresIn, this.crypto, request, this.storage, vc)];
                     case 1: return [2 /*return*/, _a.sent()];
                     case 2: return [2 /*return*/, Promise.reject(new Error(exports.ERRORS.UNRESOLVED_IDENTITY))];
                     case 3: return [2 /*return*/, Promise.reject(new Error(exports.ERRORS.NO_SIGNING_INFO))];
@@ -219,6 +286,11 @@ var Provider = /** @class */ (function () {
             });
         });
     };
+    /**
+     * @param {string} errorMessage - Message of a specific SIOPErrorResponse
+     * @returns {string} - Encoded SIOPErrorResponse object
+     * @remarks This method is used to generate error responses.
+     */
     Provider.prototype.generateErrorResponse = function (errorMessage) {
         try {
             return ErrorResponse.getBase64URLEncodedError(errorMessage);

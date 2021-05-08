@@ -12,6 +12,25 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -48,17 +67,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.combinedDidResolver = void 0;
 var commons_1 = require("./commons");
 var ethr_did_resolver_1 = require("ethr-did-resolver");
 var base58 = __importStar(require("bs58"));
@@ -66,10 +79,27 @@ var multibase_1 = __importDefault(require("multibase"));
 var multicodec_1 = __importDefault(require("multicodec"));
 var ed2curve_1 = __importDefault(require("ed2curve"));
 var axios = require('axios').default;
+/**
+ * @classdesc An abstract class which defines the interface for Resolver classes.
+ * Resolvers are used to resolve the Decentralized Identity Document for a given DID.
+ * Any extending child class must implement resolveDidDocumet(did) method.
+ * @property {string} methodName - Name of the specific DID Method. Used as a check to resolve only DIDs related to this DID Method.
+ */
 var DidResolver = /** @class */ (function () {
+    /**
+     * @constructor
+     * @param {string} methodName - Name of the specific DID Method.
+     */
     function DidResolver(methodName) {
         this.methodName = methodName;
     }
+    /**
+     *
+     * @param {string} did - DID to resolve the DID Document for.
+     * @returns A promise which resolves to a {DidDocument}
+     * @remarks A wrapper method which make use of methodName property and resolveDidDocumet(did) method
+     * to resolve documents for related DIDs only. Throws an error for DIDs of other DID Methods.
+     */
     DidResolver.prototype.resolve = function (did) {
         if (did.split(':')[1] !== this.methodName)
             throw new Error('Incorrect did method');
@@ -77,6 +107,12 @@ var DidResolver = /** @class */ (function () {
     };
     return DidResolver;
 }());
+/**
+ * @classdesc A Resolver class which combines several other Resolvers in chain.
+ * A given DID is tried with each Resolver object and if fails, passed to the next one in the chain.
+ * @property {any[]} resolvers - An array to contain instances of other classes which implement DidResolver class.
+ * @extends {DidResolver}
+ */
 var CombinedDidResolver = /** @class */ (function (_super) {
     __extends(CombinedDidResolver, _super);
     function CombinedDidResolver() {
@@ -84,6 +120,12 @@ var CombinedDidResolver = /** @class */ (function (_super) {
         _this.resolvers = [];
         return _this;
     }
+    /**
+     *
+     * @param {any} resolver - A resolver instance to add to the chain.
+     * @returns {CombinedDidResolver} To use in fluent interface pattern.
+     * @remarks Adds a given object to the resolvers array.
+     */
     CombinedDidResolver.prototype.addResolver = function (resolver) {
         this.resolvers.push(resolver);
         return this;
@@ -123,11 +165,23 @@ var CombinedDidResolver = /** @class */ (function (_super) {
             });
         });
     };
+    /**
+     *
+     * @param {string} did - DID to resolve the DID Document for.
+     * @returns A promise which resolves to a {DidDocument}
+     * @override resolve(did) method of the {DidResolver}
+     * @remarks Unlike other resolvers this class can resolve Documents for many DID Methods.
+     * Therefore the check in the parent class needs to be overridden.
+     */
     CombinedDidResolver.prototype.resolve = function (did) {
         return this.resolveDidDocumet(did);
     };
     return CombinedDidResolver;
 }(DidResolver));
+/**
+ * @classdesc Resolver class for Ethereum DIDs
+ * @extends {DidResolver}
+ */
 var EthrDidResolver = /** @class */ (function (_super) {
     __extends(EthrDidResolver, _super);
     function EthrDidResolver() {
@@ -154,6 +208,10 @@ var EthrDidResolver = /** @class */ (function (_super) {
     };
     return EthrDidResolver;
 }(DidResolver));
+/**
+ * @classdesc Resolver class for DID-KEY DIDs. These DIDs are for test purposes only.
+ * @extends {DidResolver}
+ */
 var KeyDidResolver = /** @class */ (function (_super) {
     __extends(KeyDidResolver, _super);
     function KeyDidResolver() {
@@ -203,6 +261,11 @@ var KeyDidResolver = /** @class */ (function (_super) {
     };
     return KeyDidResolver;
 }(DidResolver));
+/**
+ * @classdesc Resolver class which is based on the endpoint of https://dev.uniresolver.io/.
+ * Can be used resolve Documents for any DID Method supported by the service.
+ * @extends {DidResolver}
+ */
 var UniversalDidResolver = /** @class */ (function (_super) {
     __extends(UniversalDidResolver, _super);
     function UniversalDidResolver() {
@@ -221,11 +284,22 @@ var UniversalDidResolver = /** @class */ (function (_super) {
             });
         });
     };
+    /**
+     *
+     * @param {string} did - DID to resolve the DID Document for.
+     * @returns A promise which resolves to a {DidDocument}
+     * @override resolve(did) method of the {DidResolver}
+     * @remarks Unlike other resolvers this class can resolve Documents for many DID Methods.
+     * Therefore the check in the parent class needs to be overridden.
+     */
     UniversalDidResolver.prototype.resolve = function (did) {
         return this.resolveDidDocumet(did);
     };
     return UniversalDidResolver;
 }(DidResolver));
+/**
+ * @exports CombinedDidResolver An instance of CombinedResolver which includes resolvers for currenlty implemented DID Methods.
+ */
 exports.combinedDidResolver = new CombinedDidResolver('all')
     .addResolver(new EthrDidResolver('eth'))
     .addResolver(new KeyDidResolver('key'))

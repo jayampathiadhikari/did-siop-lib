@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ERRORS = void 0;
 exports.ERRORS = Object.freeze({
     DOCUMENT_RESOLUTION_ERROR: 'Cannot resolve document for did',
     INVALID_DID_ERROR: 'Invalid did',

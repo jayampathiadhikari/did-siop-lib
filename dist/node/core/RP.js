@@ -36,6 +36,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.RP = exports.ERRORS = void 0;
 var Response_1 = require("./Response");
 var Request_1 = require("./Request");
 var Identity_1 = require("./Identity");
@@ -48,10 +49,46 @@ exports.ERRORS = Object.freeze({
     NO_SIGNING_INFO: 'At least one public key must be confirmed with related private key',
     NO_PUBLIC_KEY: 'No public key matches given private key',
 });
+/**
+ * @classdesc This class provides the Relying Party functionality of DID based Self Issued OpenID Connect
+ * @property {RPInfo} - Used to hold Relying Party information needed in issuing requests (ex:- redirect_uri)
+ * @property {Identity} identity  - Used to store Decentralized Identity information of the Relying Party
+ * @property {SigningInfo[]} signing_info_set - Used to store a list of cryptographic information used to sign DID SIOP requests
+ */
 var RP = /** @class */ (function () {
+    /**
+     * @private
+     * @constructor
+     * @param {string} redirect_uri - Redirect uri of the RP. Response from the Provider is sent to this uri
+     * @param {string} did - Decentralized Identity of the Relying Party
+     * @param {any} registration - Registration information of the Relying Party
+     * https://openid.net/specs/openid-connect-core-1_0.html#RegistrationParameter
+     * @param {DidDocument} [did_doc] - DID Document of the RP. Optional
+     * @remarks - This is a private constructor used inside static async method getRP
+     */
     function RP(redirect_uri, did, registration, did_doc) {
+        var _this = this;
         this.identity = new Identity_1.Identity();
         this.signing_info_set = [];
+        /**
+         * @param {string} idToken - expired idToken or idToken wish to refreshed.
+         * @param {string} refreshToken - refreshToken received with above idToken.
+         * @returns {string} - A string which is a refresh request
+         * @remarks This method is used to generate a request to refresh a token.
+         */
+        this.generateTokenRefreshRequest = function (idToken, refreshToken) { return __awaiter(_this, void 0, void 0, function () {
+            var request;
+            return __generator(this, function (_a) {
+                try {
+                    request = "openid://?response_type=id_token&grant_type=refresh_token&id_token=" + idToken + "&refresh_token=" + refreshToken + "&client_id=" + this.info.redirect_uri;
+                    return [2 /*return*/, request];
+                }
+                catch (e) {
+                    return [2 /*return*/, Promise.reject(new Error(e.message))];
+                }
+                return [2 /*return*/];
+            });
+        }); };
         this.info = {
             redirect_uri: redirect_uri,
             did: did,
@@ -59,6 +96,16 @@ var RP = /** @class */ (function () {
             did_doc: did_doc
         };
     }
+    /**
+     * @param {string} redirect_uri - Redirect uri of the RP. Response from the Provider is sent to this uri
+     * @param {string} did - Decentralized Identity of the Relying Party
+     * @param {any} registration - Registration information of the Relying Party
+     * https://openid.net/specs/openid-connect-core-1_0.html#RegistrationParameter
+     * @param {DidDocument} [did_doc] - DID Document of the RP. Optional
+     * @returns {Promise<RP>} - A Promise which resolves to an instance of RP class
+     * @remarks Creating RP instances involves some async code and cannot be implemented as a constructor.
+     * Hence this static method is used in place of the constructor.
+     */
     RP.getRP = function (redirect_uri, did, registration, did_doc) {
         return __awaiter(this, void 0, void 0, function () {
             var rp, err_1;
@@ -83,6 +130,18 @@ var RP = /** @class */ (function () {
             });
         });
     };
+    /**
+     * @param {string} key - Private part of any cryptographic key listed in the 'authentication' field of RP's DID Document
+     * @param {string} [kid] - kid value of the key. Optional and not used
+     * @param {KEY_FORMATS| string} [format] - Format in which the private key is supplied. Optional and not used
+     * @param {ALGORITHMS} [algorithm] - Algorithm to use the key with. Optional and not used
+     * @returns {string} - kid of the added key
+     * @remarks This method is used to add signing information to 'signing_info_set'.
+     * All optional parameters are not used and only there to make the library backward compatible.
+     * Instead of using those optional parameters, given key is iteratively tried with
+     * every public key listed in the 'authentication' field of RP's DID Document and every key format
+     * until a compatible combination of those information which can be used for the signing process is found.
+     */
     RP.prototype.addSigningParams = function (key, kid, format, algorithm) {
         try {
             if (format) { }
@@ -173,6 +232,10 @@ var RP = /** @class */ (function () {
             throw err;
         }
     };
+    /**
+     * @param {string} kid - kid value of the SigningInfo which needs to be removed from the list
+     * @remarks This method is used to remove a certain SigningInfo (key) which has the given kid value from the list.
+     */
     RP.prototype.removeSigningParams = function (kid) {
         try {
             this.signing_info_set = this.signing_info_set.filter(function (s) { return s.kid !== kid; });
@@ -181,7 +244,17 @@ var RP = /** @class */ (function () {
             throw err;
         }
     };
-    RP.prototype.generateRequest = function (options) {
+    /**
+     * @param {any} [queryParams = {}] - query parameters which should be included in the SIOP request. for implicit flow no additional params are required.
+     * for authorization code flow: response_type, grant_type and code should be passed
+     * @param {any} [options = {}] - Any optional field which should be included in the request JWT. Any field which is not supported
+     * at Provider's end will be ignored. for implicit flow no need of additional params are required.
+     * for authorization code flow response_type should be passed
+     * @returns {Promise<string>} - A Promise which resolves to a DID SIOP request
+     * @remarks This method is used to generate a request sent to a DID SIOP Provider.
+     */
+    RP.prototype.generateRequest = function (queryParams, options) {
+        if (queryParams === void 0) { queryParams = {}; }
         if (options === void 0) { options = {}; }
         return __awaiter(this, void 0, void 0, function () {
             var signing_info, err_2;
@@ -191,7 +264,7 @@ var RP = /** @class */ (function () {
                         _a.trys.push([0, 3, , 4]);
                         if (!(this.signing_info_set.length > 0)) return [3 /*break*/, 2];
                         signing_info = this.signing_info_set[Math.floor(Math.random() * this.signing_info_set.length)];
-                        return [4 /*yield*/, Request_1.DidSiopRequest.generateRequest(this.info, signing_info, options)];
+                        return [4 /*yield*/, Request_1.DidSiopRequest.generateRequest(this.info, signing_info, queryParams, options)];
                     case 1: return [2 /*return*/, _a.sent()];
                     case 2: return [2 /*return*/, Promise.reject(new Error(exports.ERRORS.NO_SIGNING_INFO))];
                     case 3:
@@ -202,6 +275,14 @@ var RP = /** @class */ (function () {
             });
         });
     };
+    /**
+     * @param {string} request_uri - A uri from which a pre-configured and signed request JWT can be obtained
+     * @param {any} [options = {}] - Any optional field which should be included in the request JWT. Any field which is not supported
+     * at Provider's end will be ignored
+     * @returns {Promise<string>} - A Promise which resolves to a DID SIOP request
+     * @remarks This method is used to generate a request which has 'request_uri' in place of the 'request' parameter.
+     * https://identity.foundation/did-siop/#generate-siop-request
+     */
     RP.prototype.generateUriRequest = function (request_uri, options) {
         if (options === void 0) { options = {}; }
         return __awaiter(this, void 0, void 0, function () {
@@ -211,7 +292,7 @@ var RP = /** @class */ (function () {
                     case 0:
                         _a.trys.push([0, 2, , 3]);
                         this.info.request_uri = request_uri;
-                        return [4 /*yield*/, this.generateRequest(options)];
+                        return [4 /*yield*/, this.generateRequest({}, options)];
                     case 1: return [2 /*return*/, _a.sent()];
                     case 2:
                         err_3 = _a.sent();
@@ -221,6 +302,12 @@ var RP = /** @class */ (function () {
             });
         });
     };
+    /**
+     * @param {string} response - A DID SIOP response
+     * @param {CheckParams} [checkParams = {redirect_uri: this.info.redirect_uri}] - Parameters against which the response needs to be validated
+     * @returns {Promise<JWT.JWTObject> | SIOPErrorResponse} - A Promise which resolves either to a decoded response or a SIOPErrorResponse
+     * @remarks This method is used to validate responses coming from DID SIOP Providers.
+     */
     RP.prototype.validateResponse = function (response, checkParams) {
         if (checkParams === void 0) { checkParams = { redirect_uri: this.info.redirect_uri }; }
         return __awaiter(this, void 0, void 0, function () {
